@@ -1,0 +1,27 @@
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:ital,wdth,wght@0,75..100,300..800;1,75..100,300..800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-family: 'CardenioModernBold';
+  src: url('/assets/fonts/CardenioModern-Bold.otf') format('opentype');
+  font-weight: bold;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'SiliciStrong';
+  src: url('/assets/fonts/SiliciBold.ttf') format('truetype');
+  font-weight: bold;
+  font-display: swap;
+  size-adjust: 110%;
+}
+
+@font-face {
+  font-family: 'ThirstyRoughLt';
+  src: url('/assets/fonts/ThirstyRoughLt.otf') format('opentype');
+  font-weight: normal;
+  font-display: swap;
+}
