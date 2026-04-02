@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import birdsData from "../assets/data/birds.json";
 import bonusData from "../assets/data/bonus.json";
 import { BirdCardDisplay } from "./components/BirdCardDisplay";
+import { BirdFeeder } from "./components/BirdFeeder";
 import { BonusCardDisplay } from "./components/BonusCardDisplay";
 import { CardDock } from "./components/CardDock";
 import { createPlayer, type BirdCard, type BonusCard, type Player } from "./types";
@@ -25,6 +26,10 @@ const HAND_CARD_HEIGHT = 260;
 const HAND_CARD_WIDTH = HAND_CARD_HEIGHT * 0.655;
 const BONUS_CARD_WIDTH = HAND_CARD_HEIGHT * (1 / 1.526);
 const HAND_PADDING = 16;
+
+const DECK_CARD_HEIGHT = 180;
+const DECK_CARD_WIDTH = DECK_CARD_HEIGHT * 0.655;
+const DECK_BONUS_WIDTH = DECK_CARD_HEIGHT * (1 / 1.526);
 
 function App() {
   const [deck, setDeck] = useState(() => shuffle(allBirds));
@@ -63,122 +68,128 @@ function App() {
   return (
     <div className="fixed inset-0 bg-gradient-to-br from-emerald-800 to-emerald-950 flex flex-col overflow-hidden">
       {/* ── Deck area (center) ── */}
-      <div className="flex-1 flex items-center justify-center gap-12">
-        {deck.length > 0 ? (
-          <button
-            onClick={drawCard}
-            className="relative group cursor-pointer"
-            style={{ width: HAND_CARD_WIDTH, height: HAND_CARD_HEIGHT }}
-          >
-            {/* Stacked card backs for pile effect */}
-            {[3, 2, 1, 0].map((i) => (
-              <div
-                key={i}
-                className="absolute rounded-lg overflow-hidden"
-                style={{
-                  width: HAND_CARD_WIDTH,
-                  height: HAND_CARD_HEIGHT,
-                  top: i * -2,
-                  left: i * 1.5,
-                  boxShadow: i === 0 ? "0 4px 20px rgba(0,0,0,0.5)" : "0 1px 3px rgba(0,0,0,0.3)",
-                  backgroundImage: `url(${cardBackUrl})`,
-                  backgroundSize: "cover",
-                  backgroundPosition: "center",
-                }}
-              />
-            ))}
-            {/* Hover effect */}
-            <div
-              className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-              style={{ boxShadow: "0 0 30px rgba(74, 186, 120, 0.4)" }}
-            />
-            {/* Card count badge */}
-            <div
-              className="absolute -top-3 -right-3 rounded-full flex items-center justify-center text-white font-bold text-sm"
-              style={{
-                width: 36,
-                height: 36,
-                background: "#b45309",
-                border: "2px solid #fbbf24",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
-                zIndex: 10,
-              }}
-            >
-              {deck.length}
-            </div>
-          </button>
-        ) : (
-          <div
-            className="rounded-lg flex items-center justify-center"
-            style={{
-              width: HAND_CARD_WIDTH,
-              height: HAND_CARD_HEIGHT,
-              border: "2px dashed #3a9463",
-              color: "#3a9463",
-              fontSize: 18,
-              fontFamily: "CardenioModernBold, SiliciStrong, sans-serif",
-            }}
-          >
-            Deck Empty
-          </div>
-        )}
+      <div className="flex-1 flex items-center justify-end pr-12">
+        {/* Bird Feeder */}
+        <BirdFeeder />
 
-        {/* Bonus deck */}
-        {bonusDeck.length > 0 ? (
-          <button
-            onClick={drawBonusCard}
-            className="relative group cursor-pointer"
-            style={{ width: BONUS_CARD_WIDTH, height: HAND_CARD_HEIGHT }}
-          >
-            {[3, 2, 1, 0].map((i) => (
+        {/* Card decks stacked vertically */}
+        <div className="flex flex-col items-center gap-6 ml-12">
+          {deck.length > 0 ? (
+            <button
+              onClick={drawCard}
+              className="relative group cursor-pointer"
+              style={{ width: DECK_CARD_WIDTH, height: DECK_CARD_HEIGHT }}
+            >
+              {/* Stacked card backs for pile effect */}
+              {[3, 2, 1, 0].map((i) => (
+                <div
+                  key={i}
+                  className="absolute rounded-lg overflow-hidden"
+                  style={{
+                    width: DECK_CARD_WIDTH,
+                    height: DECK_CARD_HEIGHT,
+                    top: i * -2,
+                    left: i * 1.5,
+                    boxShadow: i === 0 ? "0 4px 20px rgba(0,0,0,0.5)" : "0 1px 3px rgba(0,0,0,0.3)",
+                    backgroundImage: `url(${cardBackUrl})`,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                  }}
+                />
+              ))}
+              {/* Hover effect */}
               <div
-                key={i}
-                className="absolute rounded-lg overflow-hidden"
-                style={{
-                  width: BONUS_CARD_WIDTH,
-                  height: HAND_CARD_HEIGHT,
-                  top: i * -2,
-                  left: i * 1.5,
-                  boxShadow: i === 0 ? "0 4px 20px rgba(0,0,0,0.5)" : "0 1px 3px rgba(0,0,0,0.3)",
-                  backgroundImage: `url(${bonusBackUrl})`,
-                  backgroundSize: "cover",
-                  backgroundPosition: "center",
-                }}
+                className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                style={{ boxShadow: "0 0 30px rgba(74, 186, 120, 0.4)" }}
               />
-            ))}
+              {/* Card count badge */}
+              <div
+                className="absolute -top-3 -right-3 rounded-full flex items-center justify-center text-white font-bold text-sm"
+                style={{
+                  width: 36,
+                  height: 36,
+                  background: "#b45309",
+                  border: "2px solid #fbbf24",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
+                  zIndex: 10,
+                }}
+              >
+                {deck.length}
+              </div>
+            </button>
+          ) : (
             <div
-              className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-              style={{ boxShadow: "0 0 30px rgba(74, 186, 120, 0.4)" }}
-            />
-            <div
-              className="absolute -top-3 -right-3 rounded-full flex items-center justify-center text-white font-bold text-sm"
+              className="rounded-lg flex items-center justify-center"
               style={{
-                width: 36,
-                height: 36,
-                background: "#0e7490",
-                border: "2px solid #67e8f9",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
-                zIndex: 10,
+                width: DECK_CARD_WIDTH,
+                height: DECK_CARD_HEIGHT,
+                border: "2px dashed #3a9463",
+                color: "#3a9463",
+                fontSize: 18,
+                fontFamily: "CardenioModernBold, SiliciStrong, sans-serif",
               }}
             >
-              {bonusDeck.length}
+              Deck Empty
             </div>
-          </button>
-        ) : (
-          <div
-            className="rounded-lg flex items-center justify-center"
-            style={{
-              width: BONUS_CARD_WIDTH,
-              height: HAND_CARD_HEIGHT,
-              border: "2px dashed #3a9463",
-              color: "#3a9463",
-              fontSize: 18,
-              fontFamily: "CardenioModernBold, SiliciStrong, sans-serif",
-            }}
-          >
-            Deck Empty
-          </div>
-        )}
+          )}
+
+          {/* Bonus deck */}
+          {bonusDeck.length > 0 ? (
+            <button
+              onClick={drawBonusCard}
+              className="relative group cursor-pointer"
+              style={{ width: DECK_BONUS_WIDTH, height: DECK_CARD_HEIGHT }}
+            >
+              {[3, 2, 1, 0].map((i) => (
+                <div
+                  key={i}
+                  className="absolute rounded-lg overflow-hidden"
+                  style={{
+                    width: DECK_BONUS_WIDTH,
+                    height: DECK_CARD_HEIGHT,
+                    top: i * -2,
+                    left: i * 1.5,
+                    boxShadow: i === 0 ? "0 4px 20px rgba(0,0,0,0.5)" : "0 1px 3px rgba(0,0,0,0.3)",
+                    backgroundImage: `url(${bonusBackUrl})`,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                  }}
+                />
+              ))}
+              <div
+                className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                style={{ boxShadow: "0 0 30px rgba(74, 186, 120, 0.4)" }}
+              />
+              <div
+                className="absolute -top-3 -right-3 rounded-full flex items-center justify-center text-white font-bold text-sm"
+                style={{
+                  width: 36,
+                  height: 36,
+                  background: "#0e7490",
+                  border: "2px solid #67e8f9",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
+                  zIndex: 10,
+                }}
+              >
+                {bonusDeck.length}
+              </div>
+            </button>
+          ) : (
+            <div
+              className="rounded-lg flex items-center justify-center"
+              style={{
+                width: DECK_BONUS_WIDTH,
+                height: DECK_CARD_HEIGHT,
+                border: "2px dashed #3a9463",
+                color: "#3a9463",
+                fontSize: 18,
+                fontFamily: "CardenioModernBold, SiliciStrong, sans-serif",
+              }}
+            >
+              Deck Empty
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ── Hand area (bottom) ── */}

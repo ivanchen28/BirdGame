@@ -73,6 +73,45 @@ export interface FoodSupply {
   nectar: number;
 }
 
+// ── Dice ──
+
+export type DieFace =
+  | "invertebrateSeed"
+  | "invertebrate"
+  | "seed"
+  | "fish"
+  | "rodent"
+  | "fruit"
+  | "seedNectar"
+  | "fruitNectar";
+
+export interface Die {
+  id: number;
+  possibleFaces: DieFace[];
+  currentFace: DieFace;
+  isNectar: boolean;
+}
+
+const BASE_FACES: DieFace[] = ["invertebrateSeed", "invertebrate", "seed", "fish", "rodent", "fruit"];
+const NECTAR_FACES: DieFace[] = ["invertebrateSeed", "invertebrate", "seedNectar", "fish", "rodent", "fruitNectar"];
+
+export function createDie(id: number, isNectar: boolean): Die {
+  const possibleFaces = isNectar ? NECTAR_FACES : BASE_FACES;
+  return {
+    id,
+    possibleFaces,
+    currentFace: possibleFaces[Math.floor(Math.random() * possibleFaces.length)],
+    isNectar,
+  };
+}
+
+export function rollDie(die: Die): Die {
+  return {
+    ...die,
+    currentFace: die.possibleFaces[Math.floor(Math.random() * die.possibleFaces.length)],
+  };
+}
+
 // ── Habitats ──
 
 export type HabitatType = "forest" | "grassland" | "wetland";
