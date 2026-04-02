@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { BonusCard } from "../types/BonusCard";
+import type { BonusCard } from "../types";
 
 const CARD_HEIGHT = 460;
 const CARD_RATIO = 1 / 1.526; // bonus cards are taller than wide

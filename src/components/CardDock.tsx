@@ -15,6 +15,8 @@ interface CardDockProps {
   /** Radius of influence in pixels (default 250) */
   radius?: number;
   padding?: number;
+  /** Gap between cards in pixels when there's room (default 8) */
+  gap?: number;
 }
 
 /**
@@ -22,7 +24,7 @@ interface CardDockProps {
  * Cards near the cursor scale up; cards further away stay at base size.
  * Uses refs + imperative spring updates to avoid React re-renders on mouse move.
  */
-export function CardDock({ items, baseHeight, maxScale = 1.35, radius = 250, padding = 16 }: CardDockProps) {
+export function CardDock({ items, baseHeight, maxScale = 1.35, radius = 250, padding = 16, gap = 8 }: CardDockProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mouseXRef = useRef<number | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -115,14 +117,17 @@ export function CardDock({ items, baseHeight, maxScale = 1.35, radius = 250, pad
     return () => cancelAnimationFrame(rafRef.current);
   }, []);
 
-  // Compute overlap so total base width fits within the screen
-  const overlap = useMemo(() => {
+  // Compute spacing: use desired gap, but overlap if hand is too wide
+  const marginBetween = useMemo(() => {
     if (items.length <= 1) return 0;
     const availableWidth = typeof window !== "undefined" ? window.innerWidth - padding * 2 : 1200;
     const totalBaseWidth = items.reduce((sum, item) => sum + item.baseWidth, 0);
-    if (totalBaseWidth <= availableWidth) return 0;
-    return (totalBaseWidth - availableWidth) / (items.length - 1);
-  }, [items, padding]);
+    const totalWithGaps = totalBaseWidth + gap * (items.length - 1);
+    if (totalWithGaps <= availableWidth) return gap;
+    // Need to overlap
+    const overlap = (totalBaseWidth - availableWidth) / (items.length - 1);
+    return -overlap;
+  }, [items, padding, gap]);
 
   const registerCard = useCallback(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -155,7 +160,7 @@ export function CardDock({ items, baseHeight, maxScale = 1.35, radius = 250, pad
           itemKey={item.key}
           baseWidth={item.baseWidth}
           baseHeight={baseHeight}
-          marginLeft={index === 0 ? 0 : -overlap}
+          marginLeft={index === 0 ? 0 : marginBetween}
           registerCard={registerCard}
         >
           {item.render}

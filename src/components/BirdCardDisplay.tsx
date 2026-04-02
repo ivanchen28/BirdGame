@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { BirdCard } from "../types/BirdCard";
+import type { BirdCard } from "../types";
 
 const CARD_HEIGHT = 460;
 const CARD_RATIO = 0.655;
@@ -31,12 +31,12 @@ function Iconize({ text, className }: { text: string; className?: string }) {
   );
 }
 
-interface BirdDisplayProps {
+interface BirdCardDisplayProps {
   bird: BirdCard;
   cardHeight?: number;
 }
 
-export function BirdDisplay({ bird, cardHeight = CARD_HEIGHT }: BirdDisplayProps) {
+export function BirdCardDisplay({ bird, cardHeight = CARD_HEIGHT }: BirdCardDisplayProps) {
   const cardWidth = cardHeight * CARD_RATIO;
 
   const habitats = useMemo(() => (["Wetland", "Grassland", "Forest"] as const).filter((h) => bird[h]), [bird]);

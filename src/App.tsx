@@ -1,11 +1,10 @@
 import { useMemo, useState } from "react";
 import birdsData from "../assets/data/birds.json";
 import bonusData from "../assets/data/bonus.json";
-import { BirdDisplay } from "./components/BirdDisplay";
+import { BirdCardDisplay } from "./components/BirdCardDisplay";
 import { BonusCardDisplay } from "./components/BonusCardDisplay";
 import { CardDock } from "./components/CardDock";
-import type { BirdCard } from "./types/BirdCard";
-import type { BonusCard } from "./types/BonusCard";
+import { createPlayer, type BirdCard, type BonusCard, type Player } from "./types";
 
 const cardBackUrl = new URL("../assets/cards/backgrounds/bird-background.jpg", import.meta.url).href;
 const bonusBackUrl = new URL("../assets/cards/backgrounds/bonus-background.jpg", import.meta.url).href;
@@ -29,37 +28,37 @@ const HAND_PADDING = 16;
 
 function App() {
   const [deck, setDeck] = useState(() => shuffle(allBirds));
-  const [hand, setHand] = useState<BirdCard[]>([]);
-
   const [bonusDeck, setBonusDeck] = useState(() => shuffle(allBonuses));
-  const [bonusHand, setBonusHand] = useState<BonusCard[]>([]);
+  const [player, setPlayer] = useState<Player>(() => createPlayer("Player 1", "white"));
 
   const drawCard = () => {
     if (deck.length === 0) return;
-    setHand((prev) => [...prev, deck[0]]);
+    const card = deck[0];
+    setPlayer((prev) => ({ ...prev, birdHand: [...prev.birdHand, card] }));
     setDeck((prev) => prev.slice(1));
   };
 
   const drawBonusCard = () => {
     if (bonusDeck.length === 0) return;
-    setBonusHand((prev) => [...prev, bonusDeck[0]]);
+    const card = bonusDeck[0];
+    setPlayer((prev) => ({ ...prev, bonusHand: [...prev.bonusHand, card] }));
     setBonusDeck((prev) => prev.slice(1));
   };
 
   // Build dock items: bonus cards first, then bird cards
   const dockItems = useMemo(() => {
-    const bonusItems = bonusHand.map((bonus) => ({
+    const bonusItems = player.bonusHand.map((bonus) => ({
       key: `bonus-${bonus.id}`,
       baseWidth: BONUS_CARD_WIDTH,
       render: (h: number) => <BonusCardDisplay card={bonus} cardHeight={h} />,
     }));
-    const birdItems = hand.map((bird) => ({
+    const birdItems = player.birdHand.map((bird) => ({
       key: `bird-${bird.id}`,
       baseWidth: HAND_CARD_WIDTH,
-      render: (h: number) => <BirdDisplay bird={bird} cardHeight={h} />,
+      render: (h: number) => <BirdCardDisplay bird={bird} cardHeight={h} />,
     }));
     return [...bonusItems, ...birdItems];
-  }, [bonusHand, hand]);
+  }, [player.bonusHand, player.birdHand]);
 
   return (
     <div className="fixed inset-0 bg-gradient-to-br from-emerald-800 to-emerald-950 flex flex-col overflow-hidden">
