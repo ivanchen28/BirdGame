@@ -55,6 +55,14 @@ export function BonusCardDisplay({ card, cardHeight = CARD_HEIGHT }: BonusCardDi
 
   const conditions = useMemo(() => parsePointConditions(card.VP), [card.VP]);
 
+  const titleFontSize = useMemo(() => {
+    const charCount = card["Bonus card"].replace(/\[.*?\]/g, "1").length;
+    if (charCount <= 16) return cardHeight * 0.056;
+    if (charCount <= 22) return cardHeight * 0.048;
+    if (charCount <= 28) return cardHeight * 0.042;
+    return cardHeight * 0.036;
+  }, [card, cardHeight]);
+
   const descriptionFontSize = useMemo(() => {
     const charCount = card.Condition.replace(/\[.*?\]/g, "1").length;
     return cardHeight * (charCount <= 100 ? 0.052 : 0.045);
@@ -77,8 +85,8 @@ export function BonusCardDisplay({ card, cardHeight = CARD_HEIGHT }: BonusCardDi
           borderWidth: 3,
           fontFamily: "Pangolin, sans-serif",
           color: "#666666",
-          fontSize: cardHeight * 0.056,
-          lineHeight: `${cardHeight * 0.056 + 2}px`,
+          fontSize: titleFontSize,
+          lineHeight: `${titleFontSize + 2}px`,
         }}
       >
         <Iconize text={card["Bonus card"]} />

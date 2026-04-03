@@ -92,9 +92,9 @@ export function BirdCardDisplay({ bird, cardHeight = CARD_HEIGHT }: BirdCardDisp
   // Dynamic font size for power text based on character count
   const powerFontSize = useMemo(() => {
     const charCount = bird["Power text"]?.replace(/\[.*?\]/g, "1").length || 0;
-    if (charCount <= 100) return cardHeight * 0.039;
-    if (charCount <= 150) return cardHeight * 0.036;
-    if (charCount <= 200) return cardHeight * 0.033;
+    if (charCount <= 75) return cardHeight * 0.039;
+    if (charCount <= 125) return cardHeight * 0.036;
+    if (charCount <= 175) return cardHeight * 0.033;
     return cardHeight * 0.031;
   }, [bird, cardHeight]);
 

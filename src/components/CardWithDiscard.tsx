@@ -8,10 +8,11 @@ interface CardWithDiscardProps {
   width: number;
   height: number;
   onDiscard: () => void;
+  onPlay?: () => void;
   children: React.ReactNode;
 }
 
-export function CardWithDiscard({ width, height, onDiscard, children }: CardWithDiscardProps) {
+export function CardWithDiscard({ width, height, onDiscard, onPlay, children }: CardWithDiscardProps) {
   const [showOverlay, setShowOverlay] = useState(false);
   const instanceId = useRef(nextInstanceId++);
 
@@ -43,22 +44,42 @@ export function CardWithDiscard({ width, height, onDiscard, children }: CardWith
           style={{ background: "rgba(0,0,0,0.5)", borderRadius: 8, zIndex: 20 }}
           onClick={() => setShowOverlay(false)}
         >
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowOverlay(false);
-              onDiscard();
-            }}
-            className="px-3 py-1.5 rounded-lg text-sm font-bold text-white cursor-pointer"
-            style={{
-              background: "#991b1b",
-              border: "2px solid #f87171",
-              boxShadow: "0 2px 8px rgba(0,0,0,0.4)",
-              fontFamily: "CardenioModernBold, sans-serif",
-            }}
-          >
-            Discard
-          </button>
+          <div className="flex gap-2">
+            {onPlay && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowOverlay(false);
+                  onPlay();
+                }}
+                className="px-3 py-1.5 rounded-lg text-sm font-bold text-white cursor-pointer"
+                style={{
+                  background: "#166534",
+                  border: "2px solid #4ade80",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.4)",
+                  fontFamily: "CardenioModernBold, sans-serif",
+                }}
+              >
+                Play
+              </button>
+            )}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowOverlay(false);
+                onDiscard();
+              }}
+              className="px-3 py-1.5 rounded-lg text-sm font-bold text-white cursor-pointer"
+              style={{
+                background: "#991b1b",
+                border: "2px solid #f87171",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.4)",
+                fontFamily: "CardenioModernBold, sans-serif",
+              }}
+            >
+              Discard
+            </button>
+          </div>
         </div>
       )}
     </div>

@@ -121,6 +121,7 @@ export interface Habitat {
   birds: BirdCard[];
   nectar: number;
   actionCubes: number;
+  activeCube?: number;
 }
 
 // ── Player ──
@@ -132,8 +133,6 @@ export interface Player {
   bonusHand: BonusCard[];
   food: FoodSupply;
   habitats: Record<HabitatType, Habitat>;
-  tuckedCards: number;
-  cachedFood: number;
 }
 
 export function createPlayer(name: string, cubeColor: string): Player {
@@ -144,11 +143,9 @@ export function createPlayer(name: string, cubeColor: string): Player {
     bonusHand: [],
     food: { invertebrate: 0, seed: 0, fish: 0, fruit: 0, rodent: 0, nectar: 0 },
     habitats: {
-      forest: { type: "forest", birds: [], nectar: 0, actionCubes: 0 },
-      grassland: { type: "grassland", birds: [], nectar: 0, actionCubes: 0 },
-      wetland: { type: "wetland", birds: [], nectar: 0, actionCubes: 0 },
+      forest: { type: "forest", birds: [], nectar: 0, actionCubes: 0, activeCube: undefined },
+      grassland: { type: "grassland", birds: [], nectar: 0, actionCubes: 0, activeCube: undefined },
+      wetland: { type: "wetland", birds: [], nectar: 0, actionCubes: 0, activeCube: undefined },
     },
-    tuckedCards: 0,
-    cachedFood: 0,
   };
 }

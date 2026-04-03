@@ -12,7 +12,7 @@ import { CardDock } from "./components/CardDock";
 import { CardWithDiscard } from "./components/CardWithDiscard";
 import { DiscardPileModal } from "./components/DiscardPileModal";
 import { GameBoard } from "./components/GameBoard";
-import { createPlayer, type BirdCard, type BonusCard, type Player } from "./types";
+import { createPlayer, type BirdCard, type BonusCard, type HabitatType, type Player } from "./types";
 
 const allBirds: BirdCard[] = birdsData as BirdCard[];
 const allBonuses: BonusCard[] = bonusData as BonusCard[];
@@ -26,10 +26,11 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-const HAND_CARD_HEIGHT = 260;
+const HAND_CARD_HEIGHT = 220;
 const HAND_CARD_WIDTH = HAND_CARD_HEIGHT * 0.655;
 const BONUS_CARD_WIDTH = HAND_CARD_HEIGHT * (1 / 1.526);
 const HAND_PADDING = 16;
+const HAND_AREA_HEIGHT = HAND_CARD_HEIGHT + 32;
 
 const DECK_CARD_HEIGHT = 180;
 const DECK_CARD_WIDTH = DECK_CARD_HEIGHT * 0.655;
@@ -42,6 +43,27 @@ function App() {
   const [birdDiscard, setBirdDiscard] = useState<BirdCard[]>([]);
   const [bonusDiscard, setBonusDiscard] = useState<BonusCard[]>([]);
   const [discardModal, setDiscardModal] = useState<"bird" | "bonus" | null>(null);
+  const [placingBird, setPlacingBird] = useState<BirdCard | null>(null);
+
+  const playBirdToHabitat = useCallback(
+    (habitat: HabitatType) => {
+      if (!placingBird) return;
+      const bird = placingBird;
+      setPlayer((prev) => ({
+        ...prev,
+        birdHand: prev.birdHand.filter((b) => b.id !== bird.id),
+        habitats: {
+          ...prev.habitats,
+          [habitat]: {
+            ...prev.habitats[habitat],
+            birds: [...prev.habitats[habitat].birds, bird],
+          },
+        },
+      }));
+      setPlacingBird(null);
+    },
+    [placingBird],
+  );
 
   const discardBird = useCallback(
     (birdId: number) => {
@@ -112,7 +134,12 @@ function App() {
       key: `bird-${bird.id}`,
       baseWidth: HAND_CARD_WIDTH,
       render: (h: number) => (
-        <CardWithDiscard width={HAND_CARD_WIDTH} height={h} onDiscard={() => discardBird(bird.id)}>
+        <CardWithDiscard
+          width={HAND_CARD_WIDTH}
+          height={h}
+          onDiscard={() => discardBird(bird.id)}
+          onPlay={() => setPlacingBird(bird)}
+        >
           <BirdCardDisplay bird={bird} cardHeight={h} />
         </CardWithDiscard>
       ),
@@ -123,10 +150,18 @@ function App() {
   return (
     <div className="fixed inset-0 bg-gradient-to-br from-emerald-800 to-emerald-950 flex flex-col overflow-hidden">
       {/* ── Main area ── */}
-      <div className="flex-1 flex items-center justify-between px-8 overflow-hidden">
+      <div
+        className="flex-1 flex items-center justify-between px-8 overflow-hidden"
+        style={{ height: `calc(100vh - ${HAND_AREA_HEIGHT}px)` }}
+      >
         {/* Game board (top-left) */}
-        <div className="self-start mt-4">
-          <GameBoard />
+        <div className="self-start mt-4" style={{ height: "calc(100% - 24px)" }}>
+          <GameBoard
+            player={player}
+            placingBird={placingBird}
+            onPlaceBird={playBirdToHabitat}
+            onCancelPlace={() => setPlacingBird(null)}
+          />
         </div>
 
         {/* Deck area (right side) */}
