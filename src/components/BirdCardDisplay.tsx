@@ -1,29 +1,26 @@
 import { useMemo } from "react";
+import { birdImageUrl, habitatUrl, iconUrl, nestUrl, powerBgUrl, resolveIconUrl } from "../icons";
 import type { BirdCard } from "../types";
 
 const CARD_HEIGHT = 460;
 const CARD_RATIO = 0.655;
 
-// Resolve asset URLs via Vite's import.meta.url for dev + production
-function iconUrl(name: string): string {
-  return new URL(`../../assets/icons/${name}.png`, import.meta.url).href;
-}
-function birdImageUrl(id: number): string {
-  return new URL(`../../assets/cards/birds/${id}.png`, import.meta.url).href;
-}
-function powerBgUrl(color: string): string {
-  return new URL(`../../assets/powers/${color}.png`, import.meta.url).href;
-}
-
 /** Renders text containing [icon_name] tokens as inline icon images */
-function Iconize({ text, className }: { text: string; className?: string }) {
-  const cls = className ?? "inline h-[1em] align-middle";
+function Iconize({ text, className, brown }: { text: string; className?: string; brown?: boolean }) {
   return (
     <>
       {text.split(/(\[[^\]]+\])/).map((part, i) => {
         const match = part.match(/^\[([^\]]+)\]$/);
         if (match) {
-          return <img key={i} src={iconUrl(match[1])} alt={match[1]} className={cls} />;
+          const name = brown && match[1] === "seed" ? "seed-dark" : match[1];
+          return (
+            <img
+              key={i}
+              src={resolveIconUrl(name)}
+              alt={match[1]}
+              className={className ?? "inline h-[1em] align-middle"}
+            />
+          );
         }
         return part ? <span key={i}>{part}</span> : null;
       })}
@@ -141,7 +138,7 @@ export function BirdCardDisplay({ bird, cardHeight = CARD_HEIGHT }: BirdCardDisp
             {habitats.map((habitat, i) => (
               <img
                 key={habitat}
-                src={iconUrl(habitat.toLowerCase())}
+                src={habitatUrl(habitat.toLowerCase())}
                 alt={habitat}
                 className={habitats.length === 3 && i === 1 ? "absolute" : ""}
                 style={{
@@ -243,7 +240,7 @@ export function BirdCardDisplay({ bird, cardHeight = CARD_HEIGHT }: BirdCardDisp
           {/* Nest Type */}
           {nestType && (
             <img
-              src={iconUrl(nestType)}
+              src={nestUrl(nestType)}
               alt={bird["Nest type"]}
               className="relative"
               style={{ maxWidth: "90%", maxHeight: "90%", left: "-6%", padding: "0 5%", marginTop: "65%" }}
@@ -324,7 +321,7 @@ export function BirdCardDisplay({ bird, cardHeight = CARD_HEIGHT }: BirdCardDisp
               <span className="uppercase" style={{ fontFamily: "CardenioModernBold, SiliciStrong, sans-serif" }}>
                 {powerTitle}:{" "}
               </span>
-              {bird["Power text"] && <Iconize text={bird["Power text"]} />}
+              {bird["Power text"] && <Iconize text={bird["Power text"]} brown={bird.Color === "brown"} />}
             </div>
           </div>
         </div>

@@ -1,15 +1,9 @@
 import { useMemo } from "react";
+import { resolveIconUrl } from "../icons";
 import type { BonusCard } from "../types";
 
 const CARD_HEIGHT = 460;
 const CARD_RATIO = 1 / 1.526; // bonus cards are taller than wide
-
-function iconUrl(name: string): string {
-  return new URL(`../../assets/icons/${name}.png`, import.meta.url).href;
-}
-function expansionUrl(name: string): string {
-  return new URL(`../../assets/icons/expansion-indicators/${name}.png`, import.meta.url).href;
-}
 
 /** Renders text containing [icon_name] tokens as inline icon images */
 function Iconize({ text, className }: { text: string; className?: string }) {
@@ -19,7 +13,7 @@ function Iconize({ text, className }: { text: string; className?: string }) {
       {text.split(/(\[[^\]]+\])/).map((part, i) => {
         const match = part.match(/^\[([^\]]+)\]$/);
         if (match) {
-          return <img key={i} src={iconUrl(match[1])} alt={match[1]} className={cls} />;
+          return <img key={i} src={resolveIconUrl(match[1])} alt={match[1]} className={cls} />;
         }
         return part ? <span key={i}>{part}</span> : null;
       })}
@@ -51,15 +45,6 @@ function parsePointConditions(vp: string | null): { value: string; point: boolea
   }, []);
 }
 
-const expansionMap: Record<string, string> = {
-  core: "core",
-  swiftstart: "swift_start_core",
-  european: "european",
-  oceania: "oceania",
-  asia: "asia",
-  americas: "americas",
-};
-
 interface BonusCardDisplayProps {
   card: BonusCard;
   cardHeight?: number;
@@ -74,8 +59,6 @@ export function BonusCardDisplay({ card, cardHeight = CARD_HEIGHT }: BonusCardDi
     const charCount = card.Condition.replace(/\[.*?\]/g, "1").length;
     return cardHeight * (charCount <= 100 ? 0.052 : 0.045);
   }, [card, cardHeight]);
-
-  const expansionIcon = expansionMap[card.Set] ?? null;
 
   return (
     <div
@@ -193,20 +176,6 @@ export function BonusCardDisplay({ card, cardHeight = CARD_HEIGHT }: BonusCardDi
         >
           ({card["%"]}% of cards)
         </div>
-      )}
-
-      {/* ── Expansion indicator ── */}
-      {expansionIcon && (
-        <img
-          src={expansionUrl(expansionIcon)}
-          alt={card.Set}
-          className="absolute"
-          style={{
-            width: "6.3%",
-            bottom: "1.5%",
-            right: "1.8%",
-          }}
-        />
       )}
     </div>
   );

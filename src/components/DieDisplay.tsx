@@ -1,7 +1,7 @@
 import type { DieFace } from "../types";
 
 function iconUrl(name: string): string {
-  return new URL(`../../assets/icons/${name}.png`, import.meta.url).href;
+  return new URL(`../../assets/icons/food/${name}.png`, import.meta.url).href;
 }
 
 const FACE_ICONS: Record<DieFace, string[]> = {

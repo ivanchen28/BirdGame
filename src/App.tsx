@@ -10,6 +10,7 @@ import { BonusDeck } from "./components/BonusDeck";
 import { BonusDiscardPile } from "./components/BonusDiscardPile";
 import { CardDock } from "./components/CardDock";
 import { CardWithDiscard } from "./components/CardWithDiscard";
+import { GameBoard } from "./components/GameBoard";
 import { createPlayer, type BirdCard, type BonusCard, type Player } from "./types";
 
 const allBirds: BirdCard[] = birdsData as BirdCard[];
@@ -99,28 +100,36 @@ function App() {
 
   return (
     <div className="fixed inset-0 bg-gradient-to-br from-emerald-800 to-emerald-950 flex flex-col overflow-hidden">
-      {/* ── Deck area (center) ── */}
-      <div className="flex-1 flex items-center justify-end pr-12">
-        {/* Bird Feeder */}
-        <BirdFeeder />
+      {/* ── Main area ── */}
+      <div className="flex-1 flex items-center justify-between px-8 overflow-hidden">
+        {/* Game board (top-left) */}
+        <div className="self-start mt-4">
+          <GameBoard />
+        </div>
 
-        {/* Card decks + discard piles stacked vertically */}
-        <div className="flex flex-col items-center gap-6 ml-12">
-          {/* Bird deck + discard */}
-          <div className="flex items-center gap-4">
-            <BirdDeck count={deck.length} width={DECK_CARD_WIDTH} height={DECK_CARD_HEIGHT} onDraw={drawCard} />
-            <BirdDiscardPile cards={birdDiscard} width={DECK_CARD_WIDTH} height={DECK_CARD_HEIGHT} />
-          </div>
+        {/* Deck area (right side) */}
+        <div className="flex items-center">
+          {/* Bird Feeder */}
+          <BirdFeeder />
 
-          {/* Bonus deck + discard */}
-          <div className="flex items-center gap-4">
-            <BonusDeck
-              count={bonusDeck.length}
-              width={DECK_BONUS_WIDTH}
-              height={DECK_CARD_HEIGHT}
-              onDraw={drawBonusCard}
-            />
-            <BonusDiscardPile cards={bonusDiscard} width={DECK_BONUS_WIDTH} height={DECK_CARD_HEIGHT} />
+          {/* Card decks + discard piles stacked vertically */}
+          <div className="flex flex-col items-center gap-6 ml-12">
+            {/* Bird deck + discard */}
+            <div className="flex items-center gap-4">
+              <BirdDeck count={deck.length} width={DECK_CARD_WIDTH} height={DECK_CARD_HEIGHT} onDraw={drawCard} />
+              <BirdDiscardPile cards={birdDiscard} width={DECK_CARD_WIDTH} height={DECK_CARD_HEIGHT} />
+            </div>
+
+            {/* Bonus deck + discard */}
+            <div className="flex items-center gap-4">
+              <BonusDeck
+                count={bonusDeck.length}
+                width={DECK_BONUS_WIDTH}
+                height={DECK_CARD_HEIGHT}
+                onDraw={drawBonusCard}
+              />
+              <BonusDiscardPile cards={bonusDiscard} width={DECK_BONUS_WIDTH} height={DECK_CARD_HEIGHT} />
+            </div>
           </div>
         </div>
       </div>
