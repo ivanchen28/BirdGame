@@ -10,6 +10,7 @@ import { BonusDeck } from "./components/BonusDeck";
 import { BonusDiscardPile } from "./components/BonusDiscardPile";
 import { CardDock } from "./components/CardDock";
 import { CardWithDiscard } from "./components/CardWithDiscard";
+import { DiscardPileModal } from "./components/DiscardPileModal";
 import { GameBoard } from "./components/GameBoard";
 import { createPlayer, type BirdCard, type BonusCard, type Player } from "./types";
 
@@ -40,6 +41,7 @@ function App() {
   const [player, setPlayer] = useState<Player>(() => createPlayer("Player 1", "white"));
   const [birdDiscard, setBirdDiscard] = useState<BirdCard[]>([]);
   const [bonusDiscard, setBonusDiscard] = useState<BonusCard[]>([]);
+  const [discardModal, setDiscardModal] = useState<"bird" | "bonus" | null>(null);
 
   const discardBird = useCallback(
     (birdId: number) => {
@@ -74,6 +76,26 @@ function App() {
     setPlayer((prev) => ({ ...prev, bonusHand: [...prev.bonusHand, card] }));
     setBonusDeck((prev) => prev.slice(1));
   };
+
+  const addBirdToHand = useCallback(
+    (birdId: number) => {
+      const bird = birdDiscard.find((b) => b.id === birdId);
+      if (!bird) return;
+      setBirdDiscard((prev) => prev.filter((b) => b.id !== birdId));
+      setPlayer((prev) => ({ ...prev, birdHand: [...prev.birdHand, bird] }));
+    },
+    [birdDiscard],
+  );
+
+  const addBonusToHand = useCallback(
+    (bonusId: number) => {
+      const bonus = bonusDiscard.find((b) => b.id === bonusId);
+      if (!bonus) return;
+      setBonusDiscard((prev) => prev.filter((b) => b.id !== bonusId));
+      setPlayer((prev) => ({ ...prev, bonusHand: [...prev.bonusHand, bonus] }));
+    },
+    [bonusDiscard],
+  );
 
   // Build dock items: bonus cards first, then bird cards
   const dockItems = useMemo(() => {
@@ -117,7 +139,12 @@ function App() {
             {/* Bird deck + discard */}
             <div className="flex items-center gap-4">
               <BirdDeck count={deck.length} width={DECK_CARD_WIDTH} height={DECK_CARD_HEIGHT} onDraw={drawCard} />
-              <BirdDiscardPile cards={birdDiscard} width={DECK_CARD_WIDTH} height={DECK_CARD_HEIGHT} />
+              <BirdDiscardPile
+                cards={birdDiscard}
+                width={DECK_CARD_WIDTH}
+                height={DECK_CARD_HEIGHT}
+                onClick={() => birdDiscard.length > 0 && setDiscardModal("bird")}
+              />
             </div>
 
             {/* Bonus deck + discard */}
@@ -128,7 +155,12 @@ function App() {
                 height={DECK_CARD_HEIGHT}
                 onDraw={drawBonusCard}
               />
-              <BonusDiscardPile cards={bonusDiscard} width={DECK_BONUS_WIDTH} height={DECK_CARD_HEIGHT} />
+              <BonusDiscardPile
+                cards={bonusDiscard}
+                width={DECK_BONUS_WIDTH}
+                height={DECK_CARD_HEIGHT}
+                onClick={() => bonusDiscard.length > 0 && setDiscardModal("bonus")}
+              />
             </div>
           </div>
         </div>
@@ -137,6 +169,28 @@ function App() {
       {/* ── Hand area (bottom) ── */}
       {dockItems.length > 0 && (
         <CardDock items={dockItems} baseHeight={HAND_CARD_HEIGHT} maxScale={1.5} padding={HAND_PADDING} />
+      )}
+
+      {/* Discard pile modal */}
+      {discardModal && (
+        <DiscardPileModal
+          type={discardModal}
+          birdCards={birdDiscard}
+          bonusCards={bonusDiscard}
+          onClose={() => setDiscardModal(null)}
+          onShuffle={() => {
+            if (discardModal === "bird") setBirdDiscard((prev) => shuffle([...prev]));
+            else setBonusDiscard((prev) => shuffle([...prev]));
+          }}
+          onAddBirdToHand={(id) => {
+            addBirdToHand(id);
+            if (birdDiscard.length <= 1) setDiscardModal(null);
+          }}
+          onAddBonusToHand={(id) => {
+            addBonusToHand(id);
+            if (bonusDiscard.length <= 1) setDiscardModal(null);
+          }}
+        />
       )}
     </div>
   );
