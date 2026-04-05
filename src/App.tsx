@@ -12,7 +12,17 @@ import { CardDock } from "./components/CardDock";
 import { CardWithDiscard } from "./components/CardWithDiscard";
 import { DiscardPileModal } from "./components/DiscardPileModal";
 import { GameBoard } from "./components/GameBoard";
-import { createPlayer, type BirdCard, type BonusCard, type HabitatType, type Player } from "./types";
+import { PersonalSupplyDisplay } from "./components/PersonalSupplyDisplay";
+import { foodUrl, iconUrl } from "./icons";
+import {
+  createPlayer,
+  toPlayedBird,
+  type BirdCard,
+  type BonusCard,
+  type FoodType,
+  type HabitatType,
+  type Player,
+} from "./types";
 
 const allBirds: BirdCard[] = birdsData as BirdCard[];
 const allBonuses: BonusCard[] = bonusData as BonusCard[];
@@ -44,6 +54,9 @@ function App() {
   const [bonusDiscard, setBonusDiscard] = useState<BonusCard[]>([]);
   const [discardModal, setDiscardModal] = useState<"bird" | "bonus" | null>(null);
   const [placingBird, setPlacingBird] = useState<BirdCard | null>(null);
+  const [tuckingBird, setTuckingBird] = useState<BirdCard | null>(null);
+  const [layingEggs, setLayingEggs] = useState(false);
+  const [cachingFood, setCachingFood] = useState<FoodType | null>(null);
 
   const playBirdToHabitat = useCallback(
     (habitat: HabitatType) => {
@@ -56,13 +69,114 @@ function App() {
           ...prev.habitats,
           [habitat]: {
             ...prev.habitats[habitat],
-            birds: [...prev.habitats[habitat].birds, bird],
+            birds: [...prev.habitats[habitat].birds, toPlayedBird(bird)],
           },
         },
       }));
       setPlacingBird(null);
     },
     [placingBird],
+  );
+
+  const tuckBirdBehind = useCallback(
+    (habitat: HabitatType, birdIndex: number) => {
+      if (!tuckingBird) return;
+      const card = tuckingBird;
+      setPlayer((prev) => {
+        const birds = [...prev.habitats[habitat].birds];
+        const target = birds[birdIndex];
+        birds[birdIndex] = {
+          ...target,
+          tuckedCards: [...target.tuckedCards, card],
+        };
+        return {
+          ...prev,
+          birdHand: prev.birdHand.filter((b) => b.id !== card.id),
+          habitats: {
+            ...prev.habitats,
+            [habitat]: {
+              ...prev.habitats[habitat],
+              birds,
+            },
+          },
+        };
+      });
+      setTuckingBird(null);
+    },
+    [tuckingBird],
+  );
+
+  const layEggOnBird = useCallback((habitat: HabitatType, birdIndex: number) => {
+    setPlayer((prev) => {
+      const birds = [...prev.habitats[habitat].birds];
+      const target = birds[birdIndex];
+      if (target.eggsLaid >= target["Egg limit"]) return prev;
+      birds[birdIndex] = { ...target, eggsLaid: target.eggsLaid + 1 };
+      return {
+        ...prev,
+        habitats: {
+          ...prev.habitats,
+          [habitat]: { ...prev.habitats[habitat], birds },
+        },
+      };
+    });
+    setLayingEggs(false);
+  }, []);
+
+  const removeEggFromBird = useCallback((habitat: HabitatType, birdIndex: number) => {
+    setPlayer((prev) => {
+      const birds = [...prev.habitats[habitat].birds];
+      const target = birds[birdIndex];
+      if (target.eggsLaid <= 0) return prev;
+      birds[birdIndex] = { ...target, eggsLaid: target.eggsLaid - 1 };
+      return {
+        ...prev,
+        habitats: {
+          ...prev.habitats,
+          [habitat]: { ...prev.habitats[habitat], birds },
+        },
+      };
+    });
+  }, []);
+
+  const gainFood = useCallback((foodType: FoodType) => {
+    setPlayer((prev) => ({
+      ...prev,
+      food: { ...prev.food, [foodType]: prev.food[foodType] + 1 },
+    }));
+  }, []);
+
+  const removeFood = useCallback((foodType: FoodType) => {
+    setPlayer((prev) => {
+      if (prev.food[foodType] <= 0) return prev;
+      return { ...prev, food: { ...prev.food, [foodType]: prev.food[foodType] - 1 } };
+    });
+  }, []);
+
+  const cacheFoodOnBird = useCallback(
+    (habitat: HabitatType, birdIndex: number) => {
+      if (!cachingFood) return;
+      const foodType = cachingFood;
+      setPlayer((prev) => {
+        if (prev.food[foodType] <= 0) return prev;
+        const birds = [...prev.habitats[habitat].birds];
+        const target = birds[birdIndex];
+        birds[birdIndex] = {
+          ...target,
+          cachedFood: { ...target.cachedFood, [foodType]: target.cachedFood[foodType] + 1 },
+        };
+        return {
+          ...prev,
+          food: { ...prev.food, [foodType]: prev.food[foodType] - 1 },
+          habitats: {
+            ...prev.habitats,
+            [habitat]: { ...prev.habitats[habitat], birds },
+          },
+        };
+      });
+      setCachingFood(null);
+    },
+    [cachingFood],
   );
 
   const discardBird = useCallback(
@@ -139,29 +253,112 @@ function App() {
           height={h}
           onDiscard={() => discardBird(bird.id)}
           onPlay={() => setPlacingBird(bird)}
+          onTuck={() => setTuckingBird(bird)}
+          activeAction={placingBird?.id === bird.id ? "play" : tuckingBird?.id === bird.id ? "tuck" : null}
+          onCancelAction={() => {
+            setPlacingBird(null);
+            setTuckingBird(null);
+          }}
         >
           <BirdCardDisplay bird={bird} cardHeight={h} />
         </CardWithDiscard>
       ),
     }));
     return [...bonusItems, ...birdItems];
-  }, [player.bonusHand, player.birdHand, discardBird, discardBonus]);
+  }, [player.bonusHand, player.birdHand, discardBird, discardBonus, placingBird, tuckingBird]);
 
   return (
-    <div className="fixed inset-0 bg-gradient-to-br from-emerald-800 to-emerald-950 flex flex-col overflow-hidden">
+    <div
+      className="fixed inset-0 bg-gradient-to-br from-emerald-800 to-emerald-950 flex flex-col overflow-hidden"
+      onClick={() => setCachingFood(null)}
+    >
       {/* ── Main area ── */}
       <div
-        className="flex-1 flex items-center justify-between px-8 overflow-hidden"
+        className="flex-1 flex items-center justify-between p-2 overflow-hidden"
         style={{ height: `calc(100vh - ${HAND_AREA_HEIGHT}px)` }}
       >
         {/* Game board (top-left) */}
-        <div className="self-start mt-4" style={{ height: "calc(100% - 24px)" }}>
+        <div className="self-start flex items-start gap-3" style={{ height: "calc(100% - 24px)" }}>
           <GameBoard
             player={player}
             placingBird={placingBird}
             onPlaceBird={playBirdToHabitat}
             onCancelPlace={() => setPlacingBird(null)}
+            tuckingBird={tuckingBird}
+            onTuckBird={tuckBirdBehind}
+            onCancelTuck={() => setTuckingBird(null)}
+            layingEggs={layingEggs}
+            onLayEgg={layEggOnBird}
+            onRemoveEgg={removeEggFromBird}
+            cachingFood={cachingFood}
+            onCacheFood={cacheFoodOnBird}
+            onCancelCache={() => {
+              setCachingFood(null);
+            }}
           />
+
+          {/* Egg pile button */}
+          <button
+            className="flex flex-col items-center gap-1 group cursor-pointer mt-auto mb-4"
+            onClick={() => setLayingEggs(!layingEggs)}
+          >
+            <div
+              className={`relative rounded-full flex items-center justify-center transition-shadow ${
+                layingEggs
+                  ? "ring-2 ring-yellow-400 shadow-[0_0_12px_rgba(250,204,21,0.6)]"
+                  : "group-hover:shadow-[0_0_12px_rgba(255,255,255,0.3)]"
+              }`}
+              style={{
+                width: 52,
+                height: 52,
+                background: "rgba(0,0,0,0.35)",
+                border: layingEggs ? undefined : "2px solid rgba(255,255,255,0.6)",
+              }}
+            >
+              <img src={iconUrl("egg")} alt="lay egg" className="h-8 drop-shadow" />
+            </div>
+            <span
+              className="text-white/80 drop-shadow"
+              style={{
+                fontFamily: "CardenioModernBold, SiliciStrong, sans-serif",
+                fontSize: "0.65rem",
+              }}
+            >
+              {layingEggs ? "CANCEL" : "LAY EGG"}
+            </span>
+          </button>
+
+          {/* Food pile buttons */}
+          <div className="flex flex-col items-center gap-2 mt-auto mb-4">
+            {(["invertebrate", "seed", "fruit", "fish", "rodent"] as const).map((food) => (
+              <button
+                key={food}
+                className="flex flex-col items-center gap-0.5 group cursor-pointer"
+                onClick={() => gainFood(food)}
+              >
+                <div
+                  className="relative rounded-full flex items-center justify-center transition-shadow group-hover:shadow-[0_0_12px_rgba(255,255,255,0.3)]"
+                  style={{
+                    width: 44,
+                    height: 44,
+                    background: "rgba(0,0,0,0.35)",
+                    border: "2px solid rgba(255,255,255,0.6)",
+                  }}
+                >
+                  <img src={foodUrl(food)} alt={food} className="h-7 drop-shadow" />
+                </div>
+                <span
+                  className="text-white/80 drop-shadow"
+                  style={{
+                    fontFamily: "CardenioModernBold, SiliciStrong, sans-serif",
+                    fontSize: "0.5rem",
+                  }}
+                >
+                  {food.toUpperCase()}
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Deck area (right side) */}
@@ -202,9 +399,20 @@ function App() {
       </div>
 
       {/* ── Hand area (bottom) ── */}
-      {dockItems.length > 0 && (
-        <CardDock items={dockItems} baseHeight={HAND_CARD_HEIGHT} maxScale={1.5} padding={HAND_PADDING} />
-      )}
+      <div className="flex items-end" style={{ minHeight: HAND_AREA_HEIGHT }}>
+        {/* Personal supply */}
+        <PersonalSupplyDisplay
+          player={player}
+          onRemoveFood={removeFood}
+          onStartCache={(food) => setCachingFood(food)}
+        />
+        {/* Card dock */}
+        <div className="flex-1 min-w-0">
+          {dockItems.length > 0 && (
+            <CardDock items={dockItems} baseHeight={HAND_CARD_HEIGHT} maxScale={1.5} padding={HAND_PADDING} />
+          )}
+        </div>
+      </div>
 
       {/* Discard pile modal */}
       {discardModal && (

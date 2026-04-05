@@ -9,10 +9,22 @@ interface CardWithDiscardProps {
   height: number;
   onDiscard: () => void;
   onPlay?: () => void;
+  onTuck?: () => void;
+  activeAction?: "play" | "tuck" | null;
+  onCancelAction?: () => void;
   children: React.ReactNode;
 }
 
-export function CardWithDiscard({ width, height, onDiscard, onPlay, children }: CardWithDiscardProps) {
+export function CardWithDiscard({
+  width,
+  height,
+  onDiscard,
+  onPlay,
+  onTuck,
+  activeAction,
+  onCancelAction,
+  children,
+}: CardWithDiscardProps) {
   const [showOverlay, setShowOverlay] = useState(false);
   const instanceId = useRef(nextInstanceId++);
 
@@ -38,13 +50,40 @@ export function CardWithDiscard({ width, height, onDiscard, onPlay, children }: 
   return (
     <div className="relative" style={{ width, height }}>
       <div onClick={toggle}>{children}</div>
-      {showOverlay && (
+      {/* Cancel overlay for active play/tuck action */}
+      {activeAction && (
+        <div
+          className="absolute inset-0 flex flex-col items-center justify-center gap-2"
+          style={{ background: "rgba(0,0,0,0.5)", borderRadius: 8, zIndex: 20 }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <span className="text-white font-bold text-sm" style={{ fontFamily: "CardenioModernBold, sans-serif" }}>
+            {activeAction === "play" ? "Playing…" : "Tucking…"}
+          </span>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onCancelAction?.();
+            }}
+            className="px-3 py-1.5 rounded-lg text-sm font-bold text-white cursor-pointer"
+            style={{
+              background: "#991b1b",
+              border: "2px solid #f87171",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.4)",
+              fontFamily: "CardenioModernBold, sans-serif",
+            }}
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+      {showOverlay && !activeAction && (
         <div
           className="absolute inset-0 flex items-center justify-center"
           style={{ background: "rgba(0,0,0,0.5)", borderRadius: 8, zIndex: 20 }}
           onClick={() => setShowOverlay(false)}
         >
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2">
             {onPlay && (
               <button
                 onClick={(e) => {
@@ -61,6 +100,24 @@ export function CardWithDiscard({ width, height, onDiscard, onPlay, children }: 
                 }}
               >
                 Play
+              </button>
+            )}
+            {onTuck && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowOverlay(false);
+                  onTuck();
+                }}
+                className="px-3 py-1.5 rounded-lg text-sm font-bold text-white cursor-pointer"
+                style={{
+                  background: "#854d0e",
+                  border: "2px solid #facc15",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.4)",
+                  fontFamily: "CardenioModernBold, sans-serif",
+                }}
+              >
+                Tuck
               </button>
             )}
             <button

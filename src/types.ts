@@ -52,9 +52,27 @@ export interface BonusCard {
   rulings: { text: string; source: string }[];
 }
 
+// ── Played Bird Cards ──
+
+export interface PlayedBirdCard extends BirdCard {
+  eggsLaid: number;
+  tuckedCards: BirdCard[];
+  cachedFood: FoodSupply;
+}
+
+export function toPlayedBird(bird: BirdCard): PlayedBirdCard {
+  return {
+    ...bird,
+    eggsLaid: 0,
+    tuckedCards: [],
+    cachedFood: { invertebrate: 0, seed: 0, fish: 0, fruit: 0, rodent: 0, nectar: 0 },
+  };
+}
+
 // ── Food ──
 
-export type FoodType = "invertebrate" | "seed" | "fish" | "fruit" | "rodent" | "nectar";
+export const FoodTypes = ["invertebrate", "seed", "fish", "fruit", "rodent", "nectar"] as const;
+export type FoodType = (typeof FoodTypes)[number];
 
 export interface FoodSupply {
   invertebrate: number;
@@ -106,11 +124,12 @@ export function rollDie(die: Die): Die {
 
 // ── Habitats ──
 
-export type HabitatType = "forest" | "grassland" | "wetland";
+export const HABITAT_TYPES = ["forest", "grassland", "wetland"] as const;
+export type HabitatType = (typeof HABITAT_TYPES)[number];
 
 export interface Habitat {
   type: HabitatType;
-  birds: BirdCard[];
+  birds: PlayedBirdCard[];
   spentNectar: number;
   actionCubes: number;
   activeCube?: number;

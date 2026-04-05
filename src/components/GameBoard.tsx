@@ -1,22 +1,22 @@
 import boardBg from "../../assets/board-background.jpg";
 import birdBack from "../../assets/cards/backgrounds/bird-background.jpg";
 import { foodUrl, habitatUrl, hummingbirdUrl, iconUrl, powerBgUrl } from "../icons";
-import type { BirdCard, HabitatType, Player } from "../types";
-import { BirdCardDisplay } from "./BirdCardDisplay";
+import {
+  HABITAT_TYPES,
+  type BirdCard,
+  type FoodType,
+  type HabitatType,
+  type PlayedBirdCard,
+  type Player,
+} from "../types";
+import { PlayedBirdCardDisplay } from "./PlayedBirdCardDisplay";
 
 const CARD_RATIO = 0.655; // width / height
 const HUMMINGBIRD_SCALE = 44 / 57; // hummingbird card is smaller than normal
-
-// Egg cost per bird column (0-indexed): cols 0=combined info+hb, 1-5=bird, 6=end icons
 const EGG_COSTS = [0, 0, 1, 1, 2, 2];
-
-// Icons displayed at the end of each habitat row (4 each)
 const ROW_END_ICONS: { type: "die" | "egg" | "card" }[] = [{ type: "die" }, { type: "egg" }, { type: "card" }];
 
-const HABITATS = ["forest", "grassland", "wetland"] as const;
-type Habitat = (typeof HABITATS)[number];
-
-const HABITAT_TITLES: Record<Habitat, string> = {
+const HABITAT_TITLES: Record<HabitatType, string> = {
   forest: "GAIN FOOD",
   grassland: "LAY EGGS",
   wetland: "DRAW CARDS",
@@ -37,19 +37,20 @@ const RightArrow: React.FC<{ className?: string }> = ({ className = "h-4 w-4 tex
 
 const COLUMN_ICON_COUNTS = [1, 2, 2, 2, 3];
 
-const HABITAT_ICON: Record<Habitat, { src: string; alt: string; extra?: string }> = {
+const HABITAT_ICON: Record<HabitatType, { src: string; alt: string; extra?: string }> = {
   forest: { src: iconUrl("die"), alt: "die" },
   grassland: { src: iconUrl("egg"), alt: "egg" },
   wetland: { src: birdBack, alt: "card", extra: "rounded-sm" },
 };
 
 const BirdSlot: React.FC<{
-  habitat: Habitat;
+  habitat: HabitatType;
   column: number;
-  bird?: BirdCard;
+  bird?: PlayedBirdCard;
   highlighted?: boolean;
   onSlotClick?: () => void;
-}> = ({ habitat, column, bird, highlighted, onSlotClick }) => {
+  onRemoveEgg?: () => void;
+}> = ({ habitat, column, bird, highlighted, onSlotClick, onRemoveEgg }) => {
   const iconCount = COLUMN_ICON_COUNTS[column];
   const icon = HABITAT_ICON[habitat];
   const showReset = (habitat === "forest" || habitat === "wetland") && (column === 1 || column === 3);
@@ -58,9 +59,13 @@ const BirdSlot: React.FC<{
 
   if (bird) {
     return (
-      <div className="rounded-lg overflow-hidden" style={{ width: 147.7, height: 225.5 }}>
-        <BirdCardDisplay bird={bird} cardHeight={225.5} />
-      </div>
+      <PlayedBirdCardDisplay
+        bird={bird}
+        cardHeight={225.5}
+        highlighted={highlighted}
+        onSlotClick={onSlotClick}
+        onRemoveEgg={onRemoveEgg}
+      />
     );
   }
 
@@ -200,13 +205,36 @@ interface GameBoardProps {
   placingBird?: BirdCard | null;
   onPlaceBird?: (habitat: HabitatType) => void;
   onCancelPlace?: () => void;
+  tuckingBird?: BirdCard | null;
+  onTuckBird?: (habitat: HabitatType, birdIndex: number) => void;
+  onCancelTuck?: () => void;
+  layingEggs?: boolean;
+  onLayEgg?: (habitat: HabitatType, birdIndex: number) => void;
+  onRemoveEgg?: (habitat: HabitatType, birdIndex: number) => void;
+  cachingFood?: FoodType | null;
+  onCacheFood?: (habitat: HabitatType, birdIndex: number) => void;
+  onCancelCache?: () => void;
 }
 
-export const GameBoard: React.FC<GameBoardProps> = ({ player, placingBird, onPlaceBird, onCancelPlace }) => {
+export const GameBoard: React.FC<GameBoardProps> = ({
+  player,
+  placingBird,
+  onPlaceBird,
+  onCancelPlace,
+  tuckingBird,
+  onTuckBird,
+  onCancelTuck,
+  layingEggs,
+  onLayEgg,
+  onRemoveEgg,
+  cachingFood,
+  onCacheFood,
+  onCancelCache,
+}) => {
   // Compute which habitats have a valid empty slot for the bird being placed
   const highlightedHabitats = new Set<HabitatType>();
   if (placingBird) {
-    for (const h of HABITATS) {
+    for (const h of HABITAT_TYPES) {
       const key = (h.charAt(0).toUpperCase() + h.slice(1)) as "Forest" | "Grassland" | "Wetland";
       if (placingBird[key] && player.habitats[h].birds.length < 5) {
         highlightedHabitats.add(h);
@@ -223,7 +251,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ player, placingBird, onPla
         backgroundSize: "cover",
         backgroundPosition: "left center",
       }}
-      onClick={placingBird ? onCancelPlace : undefined}
+      onClick={placingBird ? onCancelPlace : tuckingBird ? onCancelTuck : cachingFood ? onCancelCache : undefined}
     >
       {/* Layout: unified grid with hummingbird + bird columns */}
       <div
@@ -279,7 +307,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({ player, placingBird, onPla
               {/* Brown powers background - positioned via the text span below */}
               {/* Habitat info */}
               <div className="flex flex-col items-center pt-2 gap-1 px-2">
-                <img src={habitatUrl(`${HABITATS[row]}-glow`)} alt={HABITATS[row]} className="w-10 drop-shadow" />
+                <img
+                  src={habitatUrl(`${HABITAT_TYPES[row]}-glow`)}
+                  alt={HABITAT_TYPES[row]}
+                  className="w-10 drop-shadow"
+                />
                 <span
                   className="text-white text-center leading-tight drop-shadow"
                   style={{
@@ -288,11 +320,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({ player, placingBird, onPla
                     maxWidth: "4.5rem",
                   }}
                 >
-                  {HABITAT_TITLES[HABITATS[row]]}
+                  {HABITAT_TITLES[HABITAT_TYPES[row]]}
                 </span>
                 <div className="relative flex items-center gap-1 rounded-md border-2 border-white/30 bg-white/15 px-1.5 py-1">
                   <div className="relative w-8 h-8 flex-shrink-0">
-                    {player.habitats[HABITATS[row]].spentNectar > 0 ? (
+                    {player.habitats[HABITAT_TYPES[row]].spentNectar > 0 ? (
                       <>
                         <img
                           src={foodUrl("nectar")}
@@ -307,7 +339,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ player, placingBird, onPla
                             textShadow: "0 0 4px rgba(0,0,0,0.8)",
                           }}
                         >
-                          {player.habitats[HABITATS[row]].spentNectar}
+                          {player.habitats[HABITAT_TYPES[row]].spentNectar}
                         </span>
                       </>
                     ) : (
@@ -381,11 +413,15 @@ export const GameBoard: React.FC<GameBoardProps> = ({ player, placingBird, onPla
             </div>
             {/* Bird slots */}
             {Array.from({ length: 5 }, (_, col) => {
-              const h = HABITATS[row];
+              const h = HABITAT_TYPES[row];
               const habitatBirds = player.habitats[h].birds;
               const bird = habitatBirds[col];
               const isFirstEmpty = !bird && col === habitatBirds.length;
-              const highlighted = !!placingBird && isFirstEmpty && highlightedHabitats.has(h);
+              const highlightForPlace = !!placingBird && isFirstEmpty && highlightedHabitats.has(h);
+              const highlightForTuck = !!tuckingBird && !!bird;
+              const highlightForEgg = !!layingEggs && !!bird && bird.eggsLaid < bird["Egg limit"];
+              const highlightForCache = !!cachingFood && !!bird;
+              const highlighted = highlightForPlace || highlightForTuck || highlightForEgg || highlightForCache;
               return (
                 <BirdSlot
                   key={`bird-${row}-${col}`}
@@ -393,12 +429,25 @@ export const GameBoard: React.FC<GameBoardProps> = ({ player, placingBird, onPla
                   column={col}
                   bird={bird}
                   highlighted={highlighted}
+                  onRemoveEgg={bird && bird.eggsLaid > 0 ? () => onRemoveEgg?.(h, col) : undefined}
                   onSlotClick={
-                    highlighted
+                    highlightForPlace
                       ? () => {
                           onPlaceBird?.(h);
                         }
-                      : undefined
+                      : highlightForTuck
+                        ? () => {
+                            onTuckBird?.(h, col);
+                          }
+                        : highlightForEgg
+                          ? () => {
+                              onLayEgg?.(h, col);
+                            }
+                          : highlightForCache
+                            ? () => {
+                                onCacheFood?.(h, col);
+                              }
+                            : undefined
                   }
                 />
               );
