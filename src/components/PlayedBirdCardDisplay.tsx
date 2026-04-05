@@ -144,7 +144,6 @@ export function PlayedBirdCardDisplay({
         )}
       </div>
 
-      {/* Cached food - outside overflow-hidden so tooltip isn't clipped */}
       {totalCachedFood(bird.cachedFood) > 0 && (
         <CachedFoodIndicator
           cachedFood={bird.cachedFood}

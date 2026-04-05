@@ -37,6 +37,23 @@ export interface BirdCard {
   Photographer: boolean | null;
 }
 
+// ── Hummingbird Cards ──
+
+export type HummingbirdGroup = "bee" | "brilliant" | "emerald" | "mango" | "topaz";
+export type HummingbirdBenefit = "nectar" | "egg" | "card" | "advance" | "row";
+
+export interface HummingbirdCard {
+  "Common name": string;
+  "Scientific name": string;
+  Group: HummingbirdGroup;
+  Benefit: HummingbirdBenefit;
+  "Beak direction": "L" | "R";
+  Anatomist: string | null;
+  Cartographer: string | null;
+  Photographer: string | null;
+  id: number;
+}
+
 // ── Bonus Cards ──
 
 export interface BonusCard {
@@ -130,6 +147,7 @@ export type HabitatType = (typeof HABITAT_TYPES)[number];
 export interface Habitat {
   type: HabitatType;
   birds: PlayedBirdCard[];
+  hummingbird: HummingbirdCard | null;
   spentNectar: number;
   actionCubes: number;
   activeCube?: number;
@@ -154,9 +172,16 @@ export function createPlayer(name: string, cubeColor: string): Player {
     bonusHand: [],
     food: { invertebrate: 0, seed: 0, fish: 0, fruit: 0, rodent: 0, nectar: 0 },
     habitats: {
-      forest: { type: "forest", birds: [], spentNectar: 0, actionCubes: 0, activeCube: undefined },
-      grassland: { type: "grassland", birds: [], spentNectar: 0, actionCubes: 0, activeCube: undefined },
-      wetland: { type: "wetland", birds: [], spentNectar: 0, actionCubes: 0, activeCube: undefined },
+      forest: { type: "forest", birds: [], hummingbird: null, spentNectar: 0, actionCubes: 0, activeCube: undefined },
+      grassland: {
+        type: "grassland",
+        birds: [],
+        hummingbird: null,
+        spentNectar: 0,
+        actionCubes: 0,
+        activeCube: undefined,
+      },
+      wetland: { type: "wetland", birds: [], hummingbird: null, spentNectar: 0, actionCubes: 0, activeCube: undefined },
     },
   };
 }

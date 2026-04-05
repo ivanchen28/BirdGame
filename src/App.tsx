@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import birdsData from "../assets/data/birds.json";
 import bonusData from "../assets/data/bonus.json";
+import hummingbirdsData from "../assets/data/hummingbirds.json";
 import { BirdCardDisplay } from "./components/BirdCardDisplay";
 import { BirdDeck } from "./components/BirdDeck";
 import { BirdDiscardPile } from "./components/BirdDiscardPile";
@@ -12,6 +13,9 @@ import { CardDock } from "./components/CardDock";
 import { CardListModal } from "./components/CardListModal";
 import { CardWithDiscard } from "./components/CardWithDiscard";
 import { GameBoard } from "./components/GameBoard";
+import { HummingbirdCardDisplay } from "./components/HummingbirdCardDisplay";
+import { HummingbirdDeck } from "./components/HummingbirdDeck";
+import { HummingbirdDiscardPile } from "./components/HummingbirdDiscardPile";
 import { PersonalSupplyDisplay } from "./components/PersonalSupplyDisplay";
 import { foodUrl, iconUrl } from "./icons";
 import {
@@ -21,11 +25,22 @@ import {
   type BonusCard,
   type FoodType,
   type HabitatType,
+  type HummingbirdCard,
   type Player,
 } from "./types";
 
+const FOOD_DISPLAY_NAMES: Record<FoodType, string> = {
+  invertebrate: "WORM",
+  seed: "WHEAT",
+  fruit: "BERRY",
+  fish: "FISH",
+  rodent: "RAT",
+  nectar: "NECTAR",
+};
+
 const allBirds: BirdCard[] = birdsData as BirdCard[];
 const allBonuses: BonusCard[] = bonusData as BonusCard[];
+const allHummingbirds: HummingbirdCard[] = hummingbirdsData as HummingbirdCard[];
 
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -46,13 +61,20 @@ const DECK_CARD_HEIGHT = 180;
 const DECK_CARD_WIDTH = DECK_CARD_HEIGHT * 0.655;
 const DECK_BONUS_WIDTH = DECK_CARD_HEIGHT * (1 / 1.526);
 
+const HUMMINGBIRD_SCALE = 44 / 57;
+const DECK_HUMMINGBIRD_HEIGHT = DECK_CARD_HEIGHT * HUMMINGBIRD_SCALE;
+const DECK_HUMMINGBIRD_WIDTH = DECK_HUMMINGBIRD_HEIGHT * 0.655;
+
 function App() {
   const [deck, setDeck] = useState(() => shuffle(allBirds));
   const [bonusDeck, setBonusDeck] = useState(() => shuffle(allBonuses));
   const [player, setPlayer] = useState<Player>(() => createPlayer("Player 1", "white"));
   const [birdDiscard, setBirdDiscard] = useState<BirdCard[]>([]);
   const [bonusDiscard, setBonusDiscard] = useState<BonusCard[]>([]);
-  const [discardModal, setDiscardModal] = useState<"bird" | "bonus" | null>(null);
+  const [hummingbirdDeck, setHummingbirdDeck] = useState(() => shuffle(allHummingbirds));
+  const [hummingbirdDiscard, setHummingbirdDiscard] = useState<HummingbirdCard[]>([]);
+  const [placingHummingbird, setPlacingHummingbird] = useState<HummingbirdCard | null>(null);
+  const [discardModal, setDiscardModal] = useState<"bird" | "bonus" | "hummingbird" | null>(null);
   const [placingBird, setPlacingBird] = useState<BirdCard | null>(null);
   const [tuckingBird, setTuckingBird] = useState<BirdCard | null>(null);
   const [layingEggs, setLayingEggs] = useState(false);
@@ -120,7 +142,6 @@ function App() {
         },
       };
     });
-    setLayingEggs(false);
   }, []);
 
   const removeEggFromBird = useCallback((habitat: HabitatType, birdIndex: number) => {
@@ -240,6 +261,39 @@ function App() {
     setBonusDeck((prev) => prev.slice(1));
   };
 
+  const drawHummingbird = () => {
+    if (hummingbirdDeck.length === 0) return;
+    const card = hummingbirdDeck[0];
+    setPlacingHummingbird(card);
+    setHummingbirdDeck((prev) => prev.slice(1));
+  };
+
+  const placeHummingbird = useCallback(
+    (habitat: HabitatType) => {
+      if (!placingHummingbird) return;
+      const card = placingHummingbird;
+      setPlayer((prev) => ({
+        ...prev,
+        habitats: {
+          ...prev.habitats,
+          [habitat]: {
+            ...prev.habitats[habitat],
+            hummingbird: card,
+          },
+        },
+      }));
+      setPlacingHummingbird(null);
+    },
+    [placingHummingbird],
+  );
+
+  const cancelPlaceHummingbird = useCallback(() => {
+    if (!placingHummingbird) return;
+    // Put the card back on top of the deck
+    setHummingbirdDeck((prev) => [placingHummingbird, ...prev]);
+    setPlacingHummingbird(null);
+  }, [placingHummingbird]);
+
   const addBirdToHand = useCallback(
     (birdId: number) => {
       const bird = birdDiscard.find((b) => b.id === birdId);
@@ -297,7 +351,10 @@ function App() {
   return (
     <div
       className="fixed inset-0 bg-gradient-to-br from-emerald-800 to-emerald-950 flex flex-col overflow-hidden"
-      onClick={() => setCachingFood(null)}
+      onClick={() => {
+        setLayingEggs(false);
+        setCachingFood(null);
+      }}
     >
       {/* ── Main area ── */}
       <div
@@ -323,77 +380,101 @@ function App() {
               setCachingFood(null);
             }}
             onViewTucked={(habitat, birdIndex) => setViewingTucked({ habitat, birdIndex })}
+            placingHummingbird={placingHummingbird}
+            onPlaceHummingbird={placeHummingbird}
+            onCancelPlaceHummingbird={cancelPlaceHummingbird}
+            onNectarChange={(habitat, delta) => {
+              setPlayer((prev) => {
+                const current = prev.habitats[habitat].spentNectar;
+                const next = Math.max(0, current + delta);
+                if (next === current) return prev;
+                return {
+                  ...prev,
+                  habitats: {
+                    ...prev.habitats,
+                    [habitat]: { ...prev.habitats[habitat], spentNectar: next },
+                  },
+                };
+              });
+            }}
           />
 
-          {/* Egg pile button */}
-          <button
-            className="flex flex-col items-center gap-1 group cursor-pointer mt-auto mb-4"
-            onClick={() => setLayingEggs(!layingEggs)}
-          >
-            <div
-              className={`relative rounded-full flex items-center justify-center transition-shadow ${
-                layingEggs
-                  ? "ring-2 ring-yellow-400 shadow-[0_0_12px_rgba(250,204,21,0.6)]"
-                  : "group-hover:shadow-[0_0_12px_rgba(255,255,255,0.3)]"
-              }`}
-              style={{
-                width: 52,
-                height: 52,
-                background: "rgba(0,0,0,0.35)",
-                border: layingEggs ? undefined : "2px solid rgba(255,255,255,0.6)",
+          {/* Bird feeder + egg/food piles */}
+          <div className="flex flex-col items-center justify-end gap-3 self-stretch">
+            <BirdFeeder />
+            {/* Egg pile button */}
+            <button
+              className="flex flex-col items-center gap-1 group cursor-pointer"
+              onClick={(e) => {
+                e.stopPropagation();
+                setLayingEggs(!layingEggs);
               }}
             >
-              <img src={iconUrl("egg")} alt="lay egg" className="h-8 drop-shadow" />
-            </div>
-            <span
-              className="text-white/80 drop-shadow"
-              style={{
-                fontFamily: "CardenioModernBold, SiliciStrong, sans-serif",
-                fontSize: "0.65rem",
-              }}
-            >
-              {layingEggs ? "CANCEL" : "LAY EGG"}
-            </span>
-          </button>
-
-          {/* Food pile buttons */}
-          <div className="flex flex-col items-center gap-2 mt-auto mb-4">
-            {(["invertebrate", "seed", "fruit", "fish", "rodent", "nectar"] as const).map((food) => (
-              <button
-                key={food}
-                className="flex flex-col items-center gap-0.5 group cursor-pointer"
-                onClick={() => gainFood(food)}
+              <div
+                className={`relative rounded-full flex items-center justify-center transition-shadow ${
+                  layingEggs
+                    ? "ring-2 ring-yellow-400 shadow-[0_0_12px_rgba(250,204,21,0.6)]"
+                    : "group-hover:shadow-[0_0_12px_rgba(255,255,255,0.3)]"
+                }`}
+                style={{
+                  width: 52,
+                  height: 52,
+                  background: "rgba(0,0,0,0.35)",
+                  border: layingEggs ? undefined : "2px solid rgba(255,255,255,0.6)",
+                }}
               >
-                <div
-                  className="relative rounded-full flex items-center justify-center transition-shadow group-hover:shadow-[0_0_12px_rgba(255,255,255,0.3)]"
-                  style={{
-                    width: 44,
-                    height: 44,
-                    background: "rgba(0,0,0,0.35)",
-                    border: "2px solid rgba(255,255,255,0.6)",
-                  }}
+                <img src={iconUrl("egg")} alt="lay egg" className="h-8 drop-shadow" />
+              </div>
+              <span
+                className="text-white/80 drop-shadow"
+                style={{
+                  fontFamily: "CardenioModernBold, SiliciStrong, sans-serif",
+                  fontSize: "0.65rem",
+                }}
+              >
+                {layingEggs ? "CANCEL" : "LAY EGGS"}
+              </span>
+            </button>
+
+            {/* Food pile buttons */}
+            <div className="grid grid-cols-2 gap-2">
+              {(["invertebrate", "seed", "fruit", "fish", "rodent", "nectar"] as const).map((food) => (
+                <button
+                  key={food}
+                  className="flex flex-col items-center gap-0.5 group cursor-pointer"
+                  onClick={() => gainFood(food)}
                 >
-                  <img src={foodUrl(food)} alt={food} className="h-7 drop-shadow" />
-                </div>
-                <span
-                  className="text-white/80 drop-shadow"
-                  style={{
-                    fontFamily: "CardenioModernBold, SiliciStrong, sans-serif",
-                    fontSize: "0.5rem",
-                  }}
-                >
-                  {food.toUpperCase()}
-                </span>
-              </button>
-            ))}
+                  <div
+                    className="relative rounded-full flex items-center justify-center transition-shadow group-hover:shadow-[0_0_12px_rgba(255,255,255,0.3)]"
+                    style={{
+                      width: 44,
+                      height: 44,
+                      background: "rgba(0,0,0,0.35)",
+                      border: "2px solid rgba(255,255,255,0.6)",
+                    }}
+                  >
+                    <img src={foodUrl(food)} alt={food} className="h-7 drop-shadow" />
+                  </div>
+                  <span
+                    className="text-white/80 drop-shadow"
+                    style={{
+                      fontFamily: "CardenioModernBold, SiliciStrong, sans-serif",
+                      fontSize: "0.5rem",
+                    }}
+                  >
+                    {FOOD_DISPLAY_NAMES[food]}
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
+
+          {/* Personal supply */}
+          <PersonalSupplyDisplay player={player} onUseFood={removeFood} onStartCache={(food) => setCachingFood(food)} />
         </div>
 
         {/* Deck area (right side) */}
         <div className="flex items-center">
-          {/* Bird Feeder */}
-          <BirdFeeder />
-
           {/* Card decks + discard piles stacked vertically */}
           <div className="flex flex-col items-center gap-6 ml-12">
             {/* Bird deck + discard */}
@@ -422,14 +503,28 @@ function App() {
                 onClick={() => bonusDiscard.length > 0 && setDiscardModal("bonus")}
               />
             </div>
+
+            {/* Hummingbird deck + discard */}
+            <div className="flex items-center gap-4">
+              <HummingbirdDeck
+                count={hummingbirdDeck.length}
+                width={DECK_HUMMINGBIRD_WIDTH}
+                height={DECK_HUMMINGBIRD_HEIGHT}
+                onDraw={drawHummingbird}
+              />
+              <HummingbirdDiscardPile
+                cards={hummingbirdDiscard}
+                width={DECK_HUMMINGBIRD_WIDTH}
+                height={DECK_HUMMINGBIRD_HEIGHT}
+                onClick={() => hummingbirdDiscard.length > 0 && setDiscardModal("hummingbird")}
+              />
+            </div>
           </div>
         </div>
       </div>
 
       {/* ── Hand area (bottom) ── */}
       <div className="flex items-end" style={{ minHeight: HAND_AREA_HEIGHT }}>
-        {/* Personal supply */}
-        <PersonalSupplyDisplay player={player} onUseFood={removeFood} onStartCache={(food) => setCachingFood(food)} />
         {/* Card dock */}
         <div className="flex-1 min-w-0">
           {dockItems.length > 0 && (
@@ -463,6 +558,15 @@ function App() {
             addBonusToHand(id);
             if (bonusDiscard.length <= 1) setDiscardModal(null);
           }}
+        />
+      )}
+      {discardModal === "hummingbird" && (
+        <CardListModal
+          title="Hummingbird Discard Pile"
+          cards={hummingbirdDiscard}
+          renderCard={(card, h) => <HummingbirdCardDisplay card={card as HummingbirdCard} cardHeight={h} />}
+          onClose={() => setDiscardModal(null)}
+          onShuffle={() => setHummingbirdDiscard((prev) => shuffle([...prev]))}
         />
       )}
       {/* Tucked cards modal */}

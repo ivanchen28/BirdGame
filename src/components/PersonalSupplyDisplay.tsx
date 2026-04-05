@@ -37,7 +37,7 @@ export const PersonalSupplyDisplay: React.FC<PersonalSupplyProps> = ({
   }, [foodActionMenu]);
 
   return (
-    <div ref={containerRef} className="flex flex-col items-center gap-1 px-4 pb-2 shrink-0">
+    <div ref={containerRef} className="flex flex-col items-center gap-1 px-2 shrink-0 mt-auto mb-4">
       <div
         className="flex flex-col gap-1 rounded-lg px-2.5 py-1.5 relative"
         style={{ background: "rgba(0,0,0,0.35)", border: "2px solid rgba(255,255,255,0.3)" }}

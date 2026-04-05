@@ -1,3 +1,4 @@
+import { useState } from "react";
 import boardBg from "../../assets/board-background.jpg";
 import birdBack from "../../assets/cards/backgrounds/bird-background.jpg";
 import { foodUrl, habitatUrl, hummingbirdUrl, iconUrl, powerBgUrl } from "../icons";
@@ -6,9 +7,11 @@ import {
   type BirdCard,
   type FoodType,
   type HabitatType,
+  type HummingbirdCard,
   type PlayedBirdCard,
   type Player,
 } from "../types";
+import { HummingbirdCardDisplay } from "./HummingbirdCardDisplay";
 import { PlayedBirdCardDisplay } from "./PlayedBirdCardDisplay";
 
 const CARD_RATIO = 0.655; // width / height
@@ -217,6 +220,10 @@ interface GameBoardProps {
   onCacheFood?: (habitat: HabitatType, birdIndex: number) => void;
   onCancelCache?: () => void;
   onViewTucked?: (habitat: HabitatType, birdIndex: number) => void;
+  placingHummingbird?: HummingbirdCard | null;
+  onPlaceHummingbird?: (habitat: HabitatType) => void;
+  onCancelPlaceHummingbird?: () => void;
+  onNectarChange?: (habitat: HabitatType, delta: number) => void;
 }
 
 export const GameBoard: React.FC<GameBoardProps> = ({
@@ -234,7 +241,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   onCacheFood,
   onCancelCache,
   onViewTucked,
+  placingHummingbird,
+  onPlaceHummingbird,
+  onCancelPlaceHummingbird,
+  onNectarChange,
 }) => {
+  const [hoveredNectar, setHoveredNectar] = useState<HabitatType | null>(null);
   // Compute which habitats have a valid empty slot for the bird being placed
   const highlightedHabitats = new Set<HabitatType>();
   if (placingBird) {
@@ -255,7 +267,17 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         backgroundSize: "cover",
         backgroundPosition: "left center",
       }}
-      onClick={placingBird ? onCancelPlace : tuckingBird ? onCancelTuck : cachingFood ? onCancelCache : undefined}
+      onClick={
+        placingBird
+          ? onCancelPlace
+          : tuckingBird
+            ? onCancelTuck
+            : cachingFood
+              ? onCancelCache
+              : placingHummingbird
+                ? onCancelPlaceHummingbird
+                : undefined
+      }
     >
       {/* Layout: unified grid with hummingbird + bird columns */}
       <div
@@ -308,7 +330,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                 className="absolute top-0 left-1 right-1 h-0.5 bg-white/40 rounded-full"
                 style={{ transform: "translateY(-50%)" }}
               />
-              {/* Brown powers background - positioned via the text span below */}
               {/* Habitat info */}
               <div className="flex flex-col items-center pt-2 gap-1 px-2">
                 <img
@@ -326,7 +347,14 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                 >
                   {HABITAT_TITLES[HABITAT_TYPES[row]]}
                 </span>
-                <div className="relative flex items-center gap-1 rounded-md border-2 border-white/30 bg-white/15 px-1.5 py-1">
+                <div
+                  className={`relative grid grid-cols-[2rem_1fr] items-center gap-1 rounded-md border-2 border-white/30 px-1.5 py-1 transition-colors ${
+                    hoveredNectar === HABITAT_TYPES[row] ? "bg-white/40" : "bg-white/15"
+                  }`}
+                  style={{ width: "5.5rem", height: "2.75rem" }}
+                  onMouseEnter={() => setHoveredNectar(HABITAT_TYPES[row])}
+                  onMouseLeave={() => setHoveredNectar(null)}
+                >
                   <div className="relative w-8 h-8 flex-shrink-0">
                     {player.habitats[HABITAT_TYPES[row]].spentNectar > 0 ? (
                       <>
@@ -350,29 +378,52 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                       <img src={iconUrl("spent_nectar")} alt="spent nectar" className="w-8 drop-shadow" />
                     )}
                   </div>
-                  <div
-                    className="text-white/80 text-center leading-tight drop-shadow"
-                    style={{
-                      fontFamily: "CardenioModernBold, SiliciStrong, sans-serif",
-                      fontSize: "0.5rem",
-                    }}
-                  >
-                    GAME END:
-                    <br />
-                    <span className="inline-flex items-center">
-                      5/2 <img src={iconUrl("point")} alt="pts" className="inline pr-0.5 h-2.5 brightness-0 invert" />{" "}
-                      FOR
-                    </span>
-                    <br />
-                    MAJORITY
-                  </div>
+                  {hoveredNectar === HABITAT_TYPES[row] ? (
+                    <div className="flex flex-col items-center justify-center h-full">
+                      <button
+                        className="flex-1 w-full flex items-center justify-center text-white/90 hover:text-white text-md leading-none cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onNectarChange?.(HABITAT_TYPES[row], 1);
+                        }}
+                      >
+                        +
+                      </button>
+                      <button
+                        className="flex-1 w-full flex items-center justify-center text-white/90 hover:text-white text-md leading-none cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onNectarChange?.(HABITAT_TYPES[row], -1);
+                        }}
+                      >
+                        −
+                      </button>
+                    </div>
+                  ) : (
+                    <div
+                      className="text-white/80 text-center leading-tight drop-shadow"
+                      style={{
+                        fontFamily: "CardenioModernBold, SiliciStrong, sans-serif",
+                        fontSize: "0.5rem",
+                      }}
+                    >
+                      GAME END:
+                      <br />
+                      <span className="inline-flex items-center">
+                        5/2 <img src={iconUrl("point")} alt="pts" className="inline pr-0.5 h-2.5 brightness-0 invert" />{" "}
+                        FOR
+                      </span>
+                      <br />
+                      MAJORITY
+                    </div>
+                  )}
                 </div>
                 <div className="relative">
                   <img
                     src={powerBgUrl("brown")}
                     alt=""
-                    className="absolute -left-4 h-9 object-fill pointer-events-none min-w-[218px] max-w-[218px]"
-                    style={{ top: "50%", transform: "translateY(-50%)", zIndex: 0 }}
+                    className="absolute -left-5 h-9 object-fill pointer-events-none min-w-[225px] max-w-[225px]"
+                    style={{ top: "53%", transform: "translateY(-50%)", zIndex: 0 }}
                   />
                   <span
                     className="relative text-white/80 text-center leading-tight drop-shadow px-1.5 py-0.5 block"
@@ -389,14 +440,52 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                 </div>
               </div>
               {/* Hummingbird slot */}
-              <div className="flex flex-col items-center pt-1">
-                <div
-                  className="rounded-lg border-2 border-white/40 bg-black/10 z-10"
-                  style={{
-                    aspectRatio: `${CARD_RATIO}`,
-                    height: `${HUMMINGBIRD_SCALE * 100}%`,
-                  }}
-                />
+              <div
+                className="flex flex-col items-center pt-1"
+                style={{ width: 720 * 0.315 * HUMMINGBIRD_SCALE * CARD_RATIO }}
+              >
+                {(() => {
+                  const h = HABITAT_TYPES[row];
+                  const hb = player.habitats[h].hummingbird;
+                  const isOpen = !hb && !!placingHummingbird;
+
+                  if (hb) {
+                    const slotHeight = 720 * 0.315 * HUMMINGBIRD_SCALE;
+                    return (
+                      <div
+                        className="rounded-lg overflow-hidden z-10"
+                        style={{
+                          height: `${HUMMINGBIRD_SCALE * 100}%`,
+                          width: "100%",
+                        }}
+                      >
+                        <HummingbirdCardDisplay card={hb} cardHeight={slotHeight} />
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div
+                      className={`rounded-lg border-2 z-10 ${
+                        isOpen
+                          ? "border-yellow-400 shadow-[0_0_12px_rgba(250,204,21,0.6)] cursor-pointer bg-black/20"
+                          : "border-white/40 bg-black/10"
+                      }`}
+                      style={{
+                        aspectRatio: `${CARD_RATIO}`,
+                        height: `${HUMMINGBIRD_SCALE * 100}%`,
+                      }}
+                      onClick={
+                        isOpen
+                          ? (e) => {
+                              e.stopPropagation();
+                              onPlaceHummingbird?.(h);
+                            }
+                          : undefined
+                      }
+                    />
+                  );
+                })()}
                 <div className="flex items-center gap-1 mt-0.5">
                   <span
                     className="text-white/80 drop-shadow"

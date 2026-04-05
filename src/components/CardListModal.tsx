@@ -7,7 +7,7 @@ interface CardListModalProps {
   cards: { id: number }[];
   renderCard: (card: { id: number }, height: number) => ReactNode;
   onClose: () => void;
-  onAddToHand: (cardId: number) => void;
+  onAddToHand?: (cardId: number) => void;
   onShuffle?: () => void;
 }
 
@@ -80,7 +80,7 @@ export function CardListModal({ title, cards, renderCard, onClose, onAddToHand, 
               >
                 {renderCard(card, MODAL_CARD_HEIGHT)}
               </div>
-              {selectedId === card.id && (
+              {selectedId === card.id && onAddToHand && (
                 <div
                   className="absolute inset-0 flex items-center justify-center"
                   style={{ background: "rgba(0,0,0,0.5)", borderRadius: 8, zIndex: 20 }}
