@@ -11,6 +11,7 @@ import {
   type PlayedBirdCard,
   type Player,
 } from "../types";
+import { CardWithDiscard } from "./CardWithDiscard";
 import { HummingbirdCardDisplay } from "./HummingbirdCardDisplay";
 import { PlayedBirdCardDisplay } from "./PlayedBirdCardDisplay";
 
@@ -209,20 +210,17 @@ interface GameBoardProps {
   player: Player;
   placingBird?: BirdCard | null;
   onPlaceBird?: (habitat: HabitatType) => void;
-  onCancelPlace?: () => void;
   tuckingBird?: BirdCard | null;
   onTuckBird?: (habitat: HabitatType, birdIndex: number) => void;
-  onCancelTuck?: () => void;
   layingEggs?: boolean;
   onLayEgg?: (habitat: HabitatType, birdIndex: number) => void;
   onRemoveEgg?: (habitat: HabitatType, birdIndex: number) => void;
   cachingFood?: FoodType | null;
   onCacheFood?: (habitat: HabitatType, birdIndex: number) => void;
-  onCancelCache?: () => void;
   onViewTucked?: (habitat: HabitatType, birdIndex: number) => void;
   placingHummingbird?: HummingbirdCard | null;
   onPlaceHummingbird?: (habitat: HabitatType) => void;
-  onCancelPlaceHummingbird?: () => void;
+  onDiscardHummingbird?: (habitat: HabitatType) => void;
   onNectarChange?: (habitat: HabitatType, delta: number) => void;
 }
 
@@ -230,20 +228,17 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   player,
   placingBird,
   onPlaceBird,
-  onCancelPlace,
   tuckingBird,
   onTuckBird,
-  onCancelTuck,
   layingEggs,
   onLayEgg,
   onRemoveEgg,
   cachingFood,
   onCacheFood,
-  onCancelCache,
   onViewTucked,
   placingHummingbird,
   onPlaceHummingbird,
-  onCancelPlaceHummingbird,
+  onDiscardHummingbird,
   onNectarChange,
 }) => {
   const [hoveredNectar, setHoveredNectar] = useState<HabitatType | null>(null);
@@ -267,17 +262,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         backgroundSize: "cover",
         backgroundPosition: "left center",
       }}
-      onClick={
-        placingBird
-          ? onCancelPlace
-          : tuckingBird
-            ? onCancelTuck
-            : cachingFood
-              ? onCancelCache
-              : placingHummingbird
-                ? onCancelPlaceHummingbird
-                : undefined
-      }
     >
       {/* Layout: unified grid with hummingbird + bird columns */}
       <div
@@ -451,16 +435,15 @@ export const GameBoard: React.FC<GameBoardProps> = ({
 
                   if (hb) {
                     const slotHeight = 720 * 0.315 * HUMMINGBIRD_SCALE;
+                    const slotWidth = slotHeight * CARD_RATIO;
                     return (
-                      <div
-                        className="rounded-lg overflow-hidden z-10"
-                        style={{
-                          height: `${HUMMINGBIRD_SCALE * 100}%`,
-                          width: "100%",
-                        }}
+                      <CardWithDiscard
+                        width={slotWidth}
+                        height={slotHeight}
+                        onDiscard={() => onDiscardHummingbird?.(h)}
                       >
                         <HummingbirdCardDisplay card={hb} cardHeight={slotHeight} />
-                      </div>
+                      </CardWithDiscard>
                     );
                   }
 

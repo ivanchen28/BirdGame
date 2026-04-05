@@ -294,6 +294,30 @@ function App() {
     setPlacingHummingbird(null);
   }, [placingHummingbird]);
 
+  const dismissAll = useCallback(() => {
+    setPlacingBird(null);
+    setTuckingBird(null);
+    setLayingEggs(false);
+    setCachingFood(null);
+    cancelPlaceHummingbird();
+  }, [cancelPlaceHummingbird]);
+
+  const discardHummingbird = useCallback(
+    (habitat: HabitatType) => {
+      const hb = player.habitats[habitat].hummingbird;
+      if (!hb) return;
+      setHummingbirdDiscard((d) => [...d, hb]);
+      setPlayer((prev) => ({
+        ...prev,
+        habitats: {
+          ...prev.habitats,
+          [habitat]: { ...prev.habitats[habitat], hummingbird: null },
+        },
+      }));
+    },
+    [player],
+  );
+
   const addBirdToHand = useCallback(
     (birdId: number) => {
       const bird = birdDiscard.find((b) => b.id === birdId);
@@ -351,10 +375,7 @@ function App() {
   return (
     <div
       className="fixed inset-0 bg-gradient-to-br from-emerald-800 to-emerald-950 flex flex-col overflow-hidden"
-      onClick={() => {
-        setLayingEggs(false);
-        setCachingFood(null);
-      }}
+      onClick={dismissAll}
     >
       {/* ── Main area ── */}
       <div
@@ -367,22 +388,17 @@ function App() {
             player={player}
             placingBird={placingBird}
             onPlaceBird={playBirdToHabitat}
-            onCancelPlace={() => setPlacingBird(null)}
             tuckingBird={tuckingBird}
             onTuckBird={tuckBirdBehind}
-            onCancelTuck={() => setTuckingBird(null)}
             layingEggs={layingEggs}
             onLayEgg={layEggOnBird}
             onRemoveEgg={removeEggFromBird}
             cachingFood={cachingFood}
             onCacheFood={cacheFoodOnBird}
-            onCancelCache={() => {
-              setCachingFood(null);
-            }}
             onViewTucked={(habitat, birdIndex) => setViewingTucked({ habitat, birdIndex })}
             placingHummingbird={placingHummingbird}
             onPlaceHummingbird={placeHummingbird}
-            onCancelPlaceHummingbird={cancelPlaceHummingbird}
+            onDiscardHummingbird={discardHummingbird}
             onNectarChange={(habitat, delta) => {
               setPlayer((prev) => {
                 const current = prev.habitats[habitat].spentNectar;
