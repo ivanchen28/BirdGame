@@ -6,25 +6,19 @@ export interface BirdCard {
   Set: string;
   Color: string;
   "Power text": string | null;
-  Predator: boolean | null;
-  Flocking: boolean | null;
-  "Bonus card": boolean | null;
+  Predator: boolean;
+  Flocking: boolean;
+  "Bonus card": boolean;
   "Victory points": number;
   "Nest type": string;
   "Egg limit": number;
   Wingspan: number;
-  Forest: boolean | null;
-  Grassland: boolean | null;
-  Wetland: boolean | null;
-  Invertebrate: number | null;
-  Seed: number | null;
-  Fish: number | null;
-  Fruit: number | null;
-  Rodent: number | null;
-  Nectar: number | null;
-  "Wild (food)": number | null;
-  "/ (food cost)": boolean | null;
-  "* (food cost)": boolean | null;
+  Forest: boolean;
+  Grassland: boolean;
+  Wetland: boolean;
+  Food: string[];
+  OrFoodCost: boolean;
+  AlternateFoodCost: boolean;
   "Total food cost": number;
   "Beak direction": string | null;
   id: number;
@@ -55,8 +49,6 @@ export interface BonusCard {
   VP: string | null;
   "%": number | string;
   Note: string | null;
-  "VP Average": number;
-  CardType: string;
   rulings: { text: string; source: string }[];
 }
 

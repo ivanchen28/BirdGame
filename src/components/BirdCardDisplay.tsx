@@ -44,20 +44,9 @@ export function BirdCardDisplay({ bird, cardHeight = CARD_HEIGHT }: BirdCardDisp
 
   // Build food cost token string, e.g. "[fish]+[fish]" or "[seed]/[fruit]"
   const foodCostString = useMemo(() => {
-    const food: Record<string, number | null> = {
-      invertebrate: bird.Invertebrate,
-      seed: bird.Seed,
-      fruit: bird.Fruit,
-      fish: bird.Fish,
-      rodent: bird.Rodent,
-      nectar: bird.Nectar,
-      wild: bird["Wild (food)"],
-    };
-    const prefix = bird["* (food cost)"] ? "*" : "";
-    const separator = bird["/ (food cost)"] ? "/" : "+";
-    const tokens = Object.entries(food).flatMap(([name, count]) =>
-      Array.from({ length: count || 0 }, () => `[${name}]`),
-    );
+    const prefix = bird["AlternateFoodCost"] ? "*" : "";
+    const separator = bird["OrFoodCost"] ? "/" : "+";
+    const tokens = bird.Food.map((name) => `[${name}]`);
     return prefix + (tokens.join(separator) || "[no-food]");
   }, [bird]);
 
