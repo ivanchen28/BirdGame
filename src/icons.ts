@@ -7,7 +7,7 @@ export function foodUrl(name: string): string {
 export function habitatUrl(name: string): string {
   return new URL(`../assets/icons/habitats/${name}.png`, import.meta.url).href;
 }
-export function hummingbirdTypeUrl(name: string): string {
+export function hummingbirdUrl(name: string): string {
   return new URL(`../assets/icons/hummingbirds/${name}.png`, import.meta.url).href;
 }
 export function nestUrl(name: string): string {
@@ -40,6 +40,6 @@ export function resolveIconUrl(name: string): string {
   if (FoodIcons.has(name)) return foodUrl(name);
   if (HabitatIcons.has(name)) return habitatUrl(name);
   if (NestIcons.has(name)) return nestUrl(name);
-  if (HummingbirdIcons.has(name)) return hummingbirdTypeUrl(name);
+  if (HummingbirdIcons.has(name)) return hummingbirdUrl(name);
   return iconUrl(name);
 }

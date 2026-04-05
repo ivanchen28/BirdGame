@@ -1,13 +1,13 @@
 import boardBg from "../../assets/board-background.jpg";
 import birdBack from "../../assets/cards/backgrounds/bird-background.jpg";
-import { foodUrl, habitatUrl, iconUrl } from "../icons";
+import { foodUrl, habitatUrl, hummingbirdUrl, iconUrl, powerBgUrl } from "../icons";
 import type { BirdCard, HabitatType, Player } from "../types";
 import { BirdCardDisplay } from "./BirdCardDisplay";
 
 const CARD_RATIO = 0.655; // width / height
 const HUMMINGBIRD_SCALE = 44 / 57; // hummingbird card is smaller than normal
 
-// Egg cost per bird column (0-indexed): cols 1,2 = 1 egg; cols 3,4 = 2 eggs
+// Egg cost per bird column (0-indexed): cols 0=combined info+hb, 1-5=bird, 6=end icons
 const EGG_COSTS = [0, 0, 1, 1, 2, 2];
 
 // Icons displayed at the end of each habitat row (4 each)
@@ -15,6 +15,25 @@ const ROW_END_ICONS: { type: "die" | "egg" | "card" }[] = [{ type: "die" }, { ty
 
 const HABITATS = ["forest", "grassland", "wetland"] as const;
 type Habitat = (typeof HABITATS)[number];
+
+const HABITAT_TITLES: Record<Habitat, string> = {
+  forest: "GAIN FOOD",
+  grassland: "LAY EGGS",
+  wetland: "DRAW CARDS",
+};
+
+const RightArrow: React.FC<{ className?: string }> = ({ className = "h-4 w-4 text-white drop-shadow" }) => (
+  <svg
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinejoin="miter"
+  >
+    <path d="M1 7h11v-5l11 10-11 10v-5H1" />
+  </svg>
+);
 
 const COLUMN_ICON_COUNTS = [1, 2, 2, 2, 3];
 
@@ -48,7 +67,7 @@ const BirdSlot: React.FC<{
   return (
     <div
       className={`relative rounded-lg border-2 bg-black/10 ${
-        highlighted ? "border-yellow-400 shadow-[0_0_12px_rgba(250,204,21,0.6)] cursor-pointer" : "border-white/25"
+        highlighted ? "border-yellow-400 shadow-[0_0_12px_rgba(250,204,21,0.6)] cursor-pointer" : "border-white/40"
       }`}
       style={{ aspectRatio: `${CARD_RATIO}` }}
       onClick={
@@ -69,16 +88,7 @@ const BirdSlot: React.FC<{
       {showReset && (
         <div className="absolute inset-x-0 flex items-center justify-center gap-1" style={{ top: "35%" }}>
           <img src={foodUrl("wild-glow")} alt="wild" className="h-4 drop-shadow" />
-          <svg
-            className="h-4 w-4 text-white drop-shadow"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinejoin="miter"
-          >
-            <path d="M1 7h11v-5l11 10-11 10v-5H1" />
-          </svg>
+          <RightArrow />
           <div className="relative">
             {habitat === "wetland" ? (
               <img
@@ -128,16 +138,7 @@ const BirdSlot: React.FC<{
                       className="h-5 rounded-sm drop-shadow"
                       style={{ aspectRatio: `${CARD_RATIO}` }}
                     />
-                    <svg
-                      className="h-4 w-4 text-white drop-shadow"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinejoin="miter"
-                    >
-                      <path d="M1 7h11v-5l11 10-11 10v-5H1" />
-                    </svg>
+                    <RightArrow />
                     <img src={iconUrl("die")} alt="die" className="h-5 drop-shadow" />
                   </>
                 )}
@@ -159,16 +160,7 @@ const BirdSlot: React.FC<{
                       <line x1="7" y1="1" x2="1" y2="19" />
                     </svg>
                     <img src={foodUrl("wild-glow")} alt="wild" className="h-5 drop-shadow" />
-                    <svg
-                      className="h-4 w-4 text-white drop-shadow"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinejoin="miter"
-                    >
-                      <path d="M1 7h11v-5l11 10-11 10v-5H1" />
-                    </svg>
+                    <RightArrow />
                     <img src={iconUrl("egg")} alt="egg" className="h-5 drop-shadow" />
                   </>
                 )}
@@ -185,16 +177,7 @@ const BirdSlot: React.FC<{
                       <line x1="7" y1="1" x2="1" y2="19" />
                     </svg>
                     <img src={foodUrl("nectar")} alt="nectar" className="h-5 drop-shadow" />
-                    <svg
-                      className="h-4 w-4 text-white drop-shadow"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinejoin="miter"
-                    >
-                      <path d="M1 7h11v-5l11 10-11 10v-5H1" />
-                    </svg>
+                    <RightArrow />
                     <img
                       src={birdBack}
                       alt="card"
@@ -251,11 +234,27 @@ export const GameBoard: React.FC<GameBoardProps> = ({ player, placingBird, onPla
         }}
       >
         {/* Egg cost header row */}
-        {EGG_COSTS.map((count, col) =>
+        {/* Play a Bird - first header cell */}
+        <div className="flex items-center gap-2 px-1 pt-1">
+          <img src={habitatUrl("play_a_bird")} alt="play a bird" className="h-5 drop-shadow" />
+          <span
+            className="text-white drop-shadow whitespace-nowrap"
+            style={{ fontFamily: "CardenioModernBold, SiliciStrong, sans-serif", fontSize: "1.2rem" }}
+          >
+            PLAY A BIRD
+          </span>
+          <div className="flex items-center gap-1">
+            <img src={foodUrl("wild-glow")} alt="wild" className="h-4 drop-shadow" />
+            <img src={foodUrl("wild-glow")} alt="wild" className="h-4 drop-shadow" />
+            <RightArrow className="h-3 w-3 text-white drop-shadow" />
+            <img src={foodUrl("wild-glow")} alt="wild" className="h-4 drop-shadow" />
+          </div>
+        </div>
+        {EGG_COSTS.slice(1).map((count, col) =>
           count > 0 ? (
             <div className="w-full flex justify-center">
               <div
-                key={`egg-${col}`}
+                key={`egg-${col + 1}`}
                 className="flex justify-center gap-0.5 -mt-0.5 pt-2 bg-black/10 rounded-b w-[50px]"
               >
                 {Array.from({ length: count }, (_, i) => (
@@ -270,15 +269,91 @@ export const GameBoard: React.FC<GameBoardProps> = ({ player, placingBird, onPla
         <div /> {/* empty cell in header for row-end column */}
         {Array.from({ length: 3 }, (_, row) => (
           <>
-            {/* Hummingbird slot */}
-            <div key={`hb-${row}`} className="flex items-start">
+            {/* Info + Hummingbird wrapper */}
+            <div key={`infohb-${row}`} className="relative flex items-stretch">
+              {/* Separator line */}
               <div
-                className="rounded-lg border-2 border-white/25 bg-black/10"
-                style={{
-                  aspectRatio: `${CARD_RATIO}`,
-                  height: `${HUMMINGBIRD_SCALE * 100}%`,
-                }}
+                className="absolute top-0 left-1 right-1 h-0.5 bg-white/40 rounded-full"
+                style={{ transform: "translateY(-50%)" }}
               />
+              {/* Brown powers background */}
+              <img
+                src={powerBgUrl("brown")}
+                alt=""
+                className="absolute -left-3 right-0 h-9 object-cover min-w-[230px] max-w-[230px] pointer-events-none"
+                style={{ bottom: "1.85rem", zIndex: 0, objectFit: "fill" }}
+              />
+              {/* Habitat info */}
+              <div className="flex flex-col items-center pt-2 gap-1 px-2">
+                <img src={habitatUrl(`${HABITATS[row]}-glow`)} alt={HABITATS[row]} className="w-10 drop-shadow" />
+                <span
+                  className="text-white text-center leading-tight drop-shadow"
+                  style={{
+                    fontFamily: "CardenioModernBold, SiliciStrong, sans-serif",
+                    fontSize: "1.4rem",
+                    maxWidth: "4.5rem",
+                  }}
+                >
+                  {HABITAT_TITLES[HABITATS[row]]}
+                </span>
+                <div className="flex items-center gap-1 rounded-md border-2 border-white/30 bg-white/15 px-1.5 py-1">
+                  <img src={iconUrl("spent_nectar")} alt="spent nectar" className="w-8 drop-shadow" />
+                  <div
+                    className="text-white/80 text-center leading-tight drop-shadow"
+                    style={{
+                      fontFamily: "CardenioModernBold, SiliciStrong, sans-serif",
+                      fontSize: "0.5rem",
+                    }}
+                  >
+                    GAME END:
+                    <br />
+                    <span className="inline-flex items-center">
+                      5/2 <img src={iconUrl("point")} alt="pts" className="inline pr-0.5 h-2.5 brightness-0 invert" />{" "}
+                      FOR
+                    </span>
+                    <br />
+                    MAJORITY
+                  </div>
+                </div>
+                <span
+                  className="relative text-white/80 text-center leading-tight drop-shadow px-1.5 py-0.5"
+                  style={{
+                    fontFamily: "CardenioModernBold, SiliciStrong, sans-serif",
+                    fontSize: "0.75rem",
+                    zIndex: 2,
+                  }}
+                >
+                  THEN ACTIVATE
+                  <br />
+                  BROWN POWERS
+                </span>
+              </div>
+              {/* Hummingbird slot */}
+              <div className="flex flex-col items-center pt-1">
+                <div
+                  className="rounded-lg border-2 border-white/40 bg-black/10 z-10"
+                  style={{
+                    aspectRatio: `${CARD_RATIO}`,
+                    height: `${HUMMINGBIRD_SCALE * 100}%`,
+                  }}
+                />
+                <div className="flex items-center gap-1 mt-0.5">
+                  <span
+                    className="text-white/80 drop-shadow"
+                    style={{
+                      fontFamily: "CardenioModernBold, SiliciStrong, sans-serif",
+                      fontSize: "0.7rem",
+                    }}
+                  >
+                    THEN
+                  </span>
+                  <img
+                    src={hummingbirdUrl("hummingbird")}
+                    alt="hummingbird"
+                    className="h-3 drop-shadow brightness-0 invert"
+                  />
+                </div>
+              </div>
             </div>
             {/* Bird slots */}
             {Array.from({ length: 5 }, (_, col) => {
