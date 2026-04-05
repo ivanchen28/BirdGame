@@ -50,7 +50,8 @@ const BirdSlot: React.FC<{
   highlighted?: boolean;
   onSlotClick?: () => void;
   onRemoveEgg?: () => void;
-}> = ({ habitat, column, bird, highlighted, onSlotClick, onRemoveEgg }) => {
+  onViewTucked?: () => void;
+}> = ({ habitat, column, bird, highlighted, onSlotClick, onRemoveEgg, onViewTucked }) => {
   const iconCount = COLUMN_ICON_COUNTS[column];
   const icon = HABITAT_ICON[habitat];
   const showReset = (habitat === "forest" || habitat === "wetland") && (column === 1 || column === 3);
@@ -65,6 +66,7 @@ const BirdSlot: React.FC<{
         highlighted={highlighted}
         onSlotClick={onSlotClick}
         onRemoveEgg={onRemoveEgg}
+        onViewTucked={onViewTucked}
       />
     );
   }
@@ -214,6 +216,7 @@ interface GameBoardProps {
   cachingFood?: FoodType | null;
   onCacheFood?: (habitat: HabitatType, birdIndex: number) => void;
   onCancelCache?: () => void;
+  onViewTucked?: (habitat: HabitatType, birdIndex: number) => void;
 }
 
 export const GameBoard: React.FC<GameBoardProps> = ({
@@ -230,6 +233,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   cachingFood,
   onCacheFood,
   onCancelCache,
+  onViewTucked,
 }) => {
   // Compute which habitats have a valid empty slot for the bird being placed
   const highlightedHabitats = new Set<HabitatType>();
@@ -419,7 +423,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
               const isFirstEmpty = !bird && col === habitatBirds.length;
               const highlightForPlace = !!placingBird && isFirstEmpty && highlightedHabitats.has(h);
               const highlightForTuck = !!tuckingBird && !!bird;
-              const highlightForEgg = !!layingEggs && !!bird && bird.eggsLaid < bird["Egg limit"];
+              const highlightForEgg = !!layingEggs && !!bird;
               const highlightForCache = !!cachingFood && !!bird;
               const highlighted = highlightForPlace || highlightForTuck || highlightForEgg || highlightForCache;
               return (
@@ -430,6 +434,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                   bird={bird}
                   highlighted={highlighted}
                   onRemoveEgg={bird && bird.eggsLaid > 0 ? () => onRemoveEgg?.(h, col) : undefined}
+                  onViewTucked={bird && bird.tuckedCards.length > 0 ? () => onViewTucked?.(h, col) : undefined}
                   onSlotClick={
                     highlightForPlace
                       ? () => {

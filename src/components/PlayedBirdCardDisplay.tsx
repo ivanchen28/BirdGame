@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { foodUrl, iconUrl } from "../icons";
-import type { FoodSupply, PlayedBirdCard } from "../types";
+import type { FoodSupply, FoodType, PlayedBirdCard } from "../types";
 import { BirdCardDisplay } from "./BirdCardDisplay";
 
 const cardBackUrl = new URL("../../assets/cards/backgrounds/bird-background.jpg", import.meta.url).href;
@@ -16,6 +17,7 @@ interface PlayedBirdCardDisplayProps {
   highlighted?: boolean;
   onSlotClick?: () => void;
   onRemoveEgg?: () => void;
+  onViewTucked?: () => void;
 }
 
 export function PlayedBirdCardDisplay({
@@ -24,6 +26,7 @@ export function PlayedBirdCardDisplay({
   highlighted,
   onSlotClick,
   onRemoveEgg,
+  onViewTucked,
 }: PlayedBirdCardDisplayProps) {
   const cardWidth = cardHeight * CARD_RATIO;
   const tuckedCount = bird.tuckedCards.length;
@@ -108,14 +111,16 @@ export function PlayedBirdCardDisplay({
             ))}
           </div>
         )}
-
-        {/* Tucked cards indicator - right side */}
         {bird.tuckedCards.length > 0 && (
           <div
-            className="absolute flex items-center gap-0.5 pointer-events-none"
+            className="absolute flex items-center gap-0.5 cursor-pointer hover:brightness-125 transition-all"
             style={{
-              bottom: "12%",
-              right: "4%",
+              top: "20%",
+              right: "5%",
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onViewTucked?.();
             }}
           >
             <div className="relative">
@@ -123,12 +128,12 @@ export function PlayedBirdCardDisplay({
                 src={cardBackUrl}
                 alt="tucked"
                 className="rounded-sm drop-shadow-lg"
-                style={{ height: cardHeight * 0.08, aspectRatio: `${CARD_RATIO}` }}
+                style={{ height: cardHeight * 0.12, aspectRatio: `${CARD_RATIO}` }}
               />
               <span
-                className="absolute inset-0 flex items-center justify-center text-white font-bold drop-shadow"
+                className="absolute inset-0 flex items-center justify-center text-white drop-shadow"
                 style={{
-                  fontSize: cardHeight * 0.04,
+                  fontSize: cardHeight * 0.06,
                   textShadow: "0 0 4px rgba(0,0,0,0.9)",
                 }}
               >
@@ -137,36 +142,80 @@ export function PlayedBirdCardDisplay({
             </div>
           </div>
         )}
+      </div>
 
-        {/* Cached food indicator - right side, above tucked */}
-        {totalCachedFood(bird.cachedFood) > 0 && (
-          <div
-            className="absolute flex items-center gap-0.5 pointer-events-none"
-            style={{
-              bottom: bird.tuckedCards.length > 0 ? "22%" : "12%",
-              right: "4%",
-            }}
-          >
-            <div className="relative">
-              <img
-                src={foodUrl("wild")}
-                alt="cached food"
-                className="drop-shadow-lg"
-                style={{ height: cardHeight * 0.08 }}
-              />
+      {/* Cached food - outside overflow-hidden so tooltip isn't clipped */}
+      {totalCachedFood(bird.cachedFood) > 0 && (
+        <CachedFoodIndicator
+          cachedFood={bird.cachedFood}
+          cardHeight={cardHeight}
+          hasTucked={bird.tuckedCards.length > 0}
+        />
+      )}
+    </div>
+  );
+}
+
+function CachedFoodIndicator({
+  cachedFood,
+  cardHeight,
+  hasTucked,
+}: {
+  cachedFood: FoodSupply;
+  cardHeight: number;
+  hasTucked: boolean;
+}) {
+  const [showTooltip, setShowTooltip] = useState(false);
+  const entries = (Object.entries(cachedFood) as [FoodType, number][]).filter(([, n]) => n > 0);
+
+  return (
+    <div
+      className="absolute"
+      style={{
+        top: hasTucked ? "34%" : "20%",
+        right: "4%",
+      }}
+      onMouseEnter={() => setShowTooltip(true)}
+      onMouseLeave={() => setShowTooltip(false)}
+    >
+      <img src={foodUrl("wild")} alt="cached food" className="drop-shadow-lg" style={{ height: cardHeight * 0.09 }} />
+      <span
+        className="absolute inset-0 flex items-center justify-center text-white pointer-events-none"
+        style={{
+          fontSize: cardHeight * 0.06,
+          textShadow: "0 0 4px rgba(0,0,0,0.9)",
+        }}
+      >
+        {totalCachedFood(cachedFood)}
+      </span>
+
+      {showTooltip && (
+        <div
+          className="absolute z-50 rounded-lg px-2.5 py-1.5 shadow-lg flex items-center gap-2 w-max"
+          style={{
+            bottom: "110%",
+            right: "50%",
+            transform: "translateX(50%)",
+            background: "rgba(0,0,0,0.85)",
+            border: "1px solid rgba(255,255,255,0.3)",
+          }}
+        >
+          {entries.map(([food, count]) => (
+            <div key={food} className="flex items-center gap-1 py-0.5">
+              <img src={foodUrl(food)} alt={food} className="h-4 drop-shadow" />
               <span
-                className="absolute inset-0 flex items-center justify-center text-white font-bold drop-shadow"
+                className="text-white font-bold"
                 style={{
-                  fontSize: cardHeight * 0.04,
-                  textShadow: "0 0 4px rgba(0,0,0,0.9)",
+                  fontFamily: "CardenioModernBold, SiliciStrong, sans-serif",
+                  fontSize: "0.7rem",
                 }}
               >
-                {totalCachedFood(bird.cachedFood)}
+                ×{count}
               </span>
             </div>
-          </div>
-        )}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

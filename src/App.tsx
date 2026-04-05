@@ -9,8 +9,8 @@ import { BonusCardDisplay } from "./components/BonusCardDisplay";
 import { BonusDeck } from "./components/BonusDeck";
 import { BonusDiscardPile } from "./components/BonusDiscardPile";
 import { CardDock } from "./components/CardDock";
+import { CardListModal } from "./components/CardListModal";
 import { CardWithDiscard } from "./components/CardWithDiscard";
-import { DiscardPileModal } from "./components/DiscardPileModal";
 import { GameBoard } from "./components/GameBoard";
 import { PersonalSupplyDisplay } from "./components/PersonalSupplyDisplay";
 import { foodUrl, iconUrl } from "./icons";
@@ -57,6 +57,7 @@ function App() {
   const [tuckingBird, setTuckingBird] = useState<BirdCard | null>(null);
   const [layingEggs, setLayingEggs] = useState(false);
   const [cachingFood, setCachingFood] = useState<FoodType | null>(null);
+  const [viewingTucked, setViewingTucked] = useState<{ habitat: HabitatType; birdIndex: number } | null>(null);
 
   const playBirdToHabitat = useCallback(
     (habitat: HabitatType) => {
@@ -110,7 +111,6 @@ function App() {
     setPlayer((prev) => {
       const birds = [...prev.habitats[habitat].birds];
       const target = birds[birdIndex];
-      if (target.eggsLaid >= target["Egg limit"]) return prev;
       birds[birdIndex] = { ...target, eggsLaid: target.eggsLaid + 1 };
       return {
         ...prev,
@@ -177,6 +177,33 @@ function App() {
       setCachingFood(null);
     },
     [cachingFood],
+  );
+
+  const unTuck = useCallback(
+    (cardId: number) => {
+      if (!viewingTucked) return;
+      setPlayer((prev) => {
+        const birds = [...prev.habitats[viewingTucked.habitat].birds];
+        const target = birds[viewingTucked.birdIndex];
+        const card = target.tuckedCards.find((c) => c.id === cardId);
+        if (!card) return prev;
+        birds[viewingTucked.birdIndex] = {
+          ...target,
+          tuckedCards: target.tuckedCards.filter((c) => c.id !== cardId),
+        };
+        return {
+          ...prev,
+          birdHand: [...prev.birdHand, card],
+          habitats: {
+            ...prev.habitats,
+            [viewingTucked.habitat]: { ...prev.habitats[viewingTucked.habitat], birds },
+          },
+        };
+      });
+      const remaining = player.habitats[viewingTucked.habitat].birds[viewingTucked.birdIndex].tuckedCards.length;
+      if (remaining <= 1) setViewingTucked(null);
+    },
+    [viewingTucked, player.habitats],
   );
 
   const discardBird = useCallback(
@@ -295,6 +322,7 @@ function App() {
             onCancelCache={() => {
               setCachingFood(null);
             }}
+            onViewTucked={(habitat, birdIndex) => setViewingTucked({ habitat, birdIndex })}
           />
 
           {/* Egg pile button */}
@@ -330,7 +358,7 @@ function App() {
 
           {/* Food pile buttons */}
           <div className="flex flex-col items-center gap-2 mt-auto mb-4">
-            {(["invertebrate", "seed", "fruit", "fish", "rodent"] as const).map((food) => (
+            {(["invertebrate", "seed", "fruit", "fish", "rodent", "nectar"] as const).map((food) => (
               <button
                 key={food}
                 className="flex flex-col items-center gap-0.5 group cursor-pointer"
@@ -401,11 +429,7 @@ function App() {
       {/* ── Hand area (bottom) ── */}
       <div className="flex items-end" style={{ minHeight: HAND_AREA_HEIGHT }}>
         {/* Personal supply */}
-        <PersonalSupplyDisplay
-          player={player}
-          onRemoveFood={removeFood}
-          onStartCache={(food) => setCachingFood(food)}
-        />
+        <PersonalSupplyDisplay player={player} onUseFood={removeFood} onStartCache={(food) => setCachingFood(food)} />
         {/* Card dock */}
         <div className="flex-1 min-w-0">
           {dockItems.length > 0 && (
@@ -415,26 +439,47 @@ function App() {
       </div>
 
       {/* Discard pile modal */}
-      {discardModal && (
-        <DiscardPileModal
-          type={discardModal}
-          birdCards={birdDiscard}
-          bonusCards={bonusDiscard}
+      {discardModal === "bird" && (
+        <CardListModal
+          title="Bird Discard Pile"
+          cards={birdDiscard}
+          renderCard={(card, h) => <BirdCardDisplay bird={card as BirdCard} cardHeight={h} />}
           onClose={() => setDiscardModal(null)}
-          onShuffle={() => {
-            if (discardModal === "bird") setBirdDiscard((prev) => shuffle([...prev]));
-            else setBonusDiscard((prev) => shuffle([...prev]));
-          }}
-          onAddBirdToHand={(id) => {
+          onShuffle={() => setBirdDiscard((prev) => shuffle([...prev]))}
+          onAddToHand={(id) => {
             addBirdToHand(id);
             if (birdDiscard.length <= 1) setDiscardModal(null);
           }}
-          onAddBonusToHand={(id) => {
+        />
+      )}
+      {discardModal === "bonus" && (
+        <CardListModal
+          title="Bonus Discard Pile"
+          cards={bonusDiscard}
+          renderCard={(card, h) => <BonusCardDisplay card={card as BonusCard} cardHeight={h} />}
+          onClose={() => setDiscardModal(null)}
+          onShuffle={() => setBonusDiscard((prev) => shuffle([...prev]))}
+          onAddToHand={(id) => {
             addBonusToHand(id);
             if (bonusDiscard.length <= 1) setDiscardModal(null);
           }}
         />
       )}
+      {/* Tucked cards modal */}
+      {viewingTucked &&
+        (() => {
+          const bird = player.habitats[viewingTucked.habitat].birds[viewingTucked.birdIndex];
+          if (!bird) return null;
+          return (
+            <CardListModal
+              title={`Tucked under ${bird["Common name"]}`}
+              cards={bird.tuckedCards}
+              renderCard={(card, h) => <BirdCardDisplay bird={card as BirdCard} cardHeight={h} />}
+              onClose={() => setViewingTucked(null)}
+              onAddToHand={unTuck}
+            />
+          );
+        })()}
     </div>
   );
 }

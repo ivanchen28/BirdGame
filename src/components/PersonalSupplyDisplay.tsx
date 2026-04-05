@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { foodUrl } from "../icons";
 import { FoodTypes, type FoodType, type Player } from "../types";
 
@@ -13,15 +13,31 @@ const FOOD_DISPLAY_NAMES: Record<FoodType, string> = {
 
 interface PersonalSupplyProps {
   player: Player;
-  onRemoveFood: (food: FoodType) => void;
+  onUseFood: (food: FoodType) => void;
   onStartCache: (food: FoodType) => void;
 }
 
-export const PersonalSupplyDisplay: React.FC<PersonalSupplyProps> = ({ player, onRemoveFood, onStartCache }) => {
+export const PersonalSupplyDisplay: React.FC<PersonalSupplyProps> = ({
+  player,
+  onUseFood: onUseFood,
+  onStartCache,
+}) => {
   const [foodActionMenu, setFoodActionMenu] = useState<FoodType | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!foodActionMenu) return;
+    const handleClick = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setFoodActionMenu(null);
+      }
+    };
+    document.addEventListener("click", handleClick);
+    return () => document.removeEventListener("click", handleClick);
+  }, [foodActionMenu]);
 
   return (
-    <div className="flex flex-col items-center gap-1 px-4 pb-2 shrink-0">
+    <div ref={containerRef} className="flex flex-col items-center gap-1 px-4 pb-2 shrink-0">
       <div
         className="flex flex-col gap-1 rounded-lg px-2.5 py-1.5 relative"
         style={{ background: "rgba(0,0,0,0.35)", border: "2px solid rgba(255,255,255,0.3)" }}
@@ -70,10 +86,10 @@ export const PersonalSupplyDisplay: React.FC<PersonalSupplyProps> = ({ player, o
                   }}
                   onClick={(e) => {
                     e.stopPropagation();
-                    onRemoveFood(food);
+                    onUseFood(food);
                   }}
                 >
-                  REMOVE
+                  USE
                 </button>
                 <div className="w-px bg-white/20" />
                 <button
