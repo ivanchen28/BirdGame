@@ -276,13 +276,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ player, placingBird, onPla
                 className="absolute top-0 left-1 right-1 h-0.5 bg-white/40 rounded-full"
                 style={{ transform: "translateY(-50%)" }}
               />
-              {/* Brown powers background */}
-              <img
-                src={powerBgUrl("brown")}
-                alt=""
-                className="absolute -left-3 right-0 h-9 object-cover min-w-[230px] max-w-[230px] pointer-events-none"
-                style={{ bottom: "1.85rem", zIndex: 0, objectFit: "fill" }}
-              />
+              {/* Brown powers background - positioned via the text span below */}
               {/* Habitat info */}
               <div className="flex flex-col items-center pt-2 gap-1 px-2">
                 <img src={habitatUrl(`${HABITATS[row]}-glow`)} alt={HABITATS[row]} className="w-10 drop-shadow" />
@@ -296,8 +290,30 @@ export const GameBoard: React.FC<GameBoardProps> = ({ player, placingBird, onPla
                 >
                   {HABITAT_TITLES[HABITATS[row]]}
                 </span>
-                <div className="flex items-center gap-1 rounded-md border-2 border-white/30 bg-white/15 px-1.5 py-1">
-                  <img src={iconUrl("spent_nectar")} alt="spent nectar" className="w-8 drop-shadow" />
+                <div className="relative flex items-center gap-1 rounded-md border-2 border-white/30 bg-white/15 px-1.5 py-1">
+                  <div className="relative w-8 h-8 flex-shrink-0">
+                    {player.habitats[HABITATS[row]].spentNectar > 0 ? (
+                      <>
+                        <img
+                          src={foodUrl("nectar")}
+                          alt="nectar"
+                          className="absolute inset-0 w-8 h-8 object-contain drop-shadow"
+                        />
+                        <span
+                          className="absolute inset-0 flex items-center justify-center text-white font-bold drop-shadow"
+                          style={{
+                            fontFamily: "CardenioModernBold, SiliciStrong, sans-serif",
+                            fontSize: "1.1rem",
+                            textShadow: "0 0 4px rgba(0,0,0,0.8)",
+                          }}
+                        >
+                          {player.habitats[HABITATS[row]].spentNectar}
+                        </span>
+                      </>
+                    ) : (
+                      <img src={iconUrl("spent_nectar")} alt="spent nectar" className="w-8 drop-shadow" />
+                    )}
+                  </div>
                   <div
                     className="text-white/80 text-center leading-tight drop-shadow"
                     style={{
@@ -315,18 +331,26 @@ export const GameBoard: React.FC<GameBoardProps> = ({ player, placingBird, onPla
                     MAJORITY
                   </div>
                 </div>
-                <span
-                  className="relative text-white/80 text-center leading-tight drop-shadow px-1.5 py-0.5"
-                  style={{
-                    fontFamily: "CardenioModernBold, SiliciStrong, sans-serif",
-                    fontSize: "0.75rem",
-                    zIndex: 2,
-                  }}
-                >
-                  THEN ACTIVATE
-                  <br />
-                  BROWN POWERS
-                </span>
+                <div className="relative">
+                  <img
+                    src={powerBgUrl("brown")}
+                    alt=""
+                    className="absolute -left-4 h-9 object-fill pointer-events-none min-w-[218px] max-w-[218px]"
+                    style={{ top: "50%", transform: "translateY(-50%)", zIndex: 0 }}
+                  />
+                  <span
+                    className="relative text-white/80 text-center leading-tight drop-shadow px-1.5 py-0.5 block"
+                    style={{
+                      fontFamily: "CardenioModernBold, SiliciStrong, sans-serif",
+                      fontSize: "0.75rem",
+                      zIndex: 2,
+                    }}
+                  >
+                    THEN ACTIVATE
+                    <br />
+                    BROWN POWERS
+                  </span>
+                </div>
               </div>
               {/* Hummingbird slot */}
               <div className="flex flex-col items-center pt-1">

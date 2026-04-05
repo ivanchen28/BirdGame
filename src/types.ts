@@ -111,7 +111,7 @@ export type HabitatType = "forest" | "grassland" | "wetland";
 export interface Habitat {
   type: HabitatType;
   birds: BirdCard[];
-  nectar: number;
+  spentNectar: number;
   actionCubes: number;
   activeCube?: number;
 }
@@ -135,9 +135,9 @@ export function createPlayer(name: string, cubeColor: string): Player {
     bonusHand: [],
     food: { invertebrate: 0, seed: 0, fish: 0, fruit: 0, rodent: 0, nectar: 0 },
     habitats: {
-      forest: { type: "forest", birds: [], nectar: 0, actionCubes: 0, activeCube: undefined },
-      grassland: { type: "grassland", birds: [], nectar: 0, actionCubes: 0, activeCube: undefined },
-      wetland: { type: "wetland", birds: [], nectar: 0, actionCubes: 0, activeCube: undefined },
+      forest: { type: "forest", birds: [], spentNectar: 0, actionCubes: 0, activeCube: undefined },
+      grassland: { type: "grassland", birds: [], spentNectar: 0, actionCubes: 0, activeCube: undefined },
+      wetland: { type: "wetland", birds: [], spentNectar: 0, actionCubes: 0, activeCube: undefined },
     },
   };
 }
