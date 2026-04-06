@@ -67,8 +67,8 @@ export function BirdDiscardPile({ cards, width, height, onClick }: BirdDiscardPi
         style={{
           width: 36,
           height: 36,
-          background: "#6b2121",
-          border: "2px solid #f87171",
+          background: "#6b7280",
+          border: "2px solid #d1d5db",
           boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
           zIndex: 10,
         }}

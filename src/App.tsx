@@ -509,7 +509,7 @@ function App() {
       {/* ── Left side: game board row + card hand ── */}
       <div className="flex-1 flex flex-col py-2 px-5 overflow-hidden min-w-0">
         {/* Game board + side column row */}
-        <div className="flex items-start gap-3">
+        <div className="flex items-start gap-4">
           <GameBoard
             player={player}
             placingBird={placingBird}
@@ -614,16 +614,8 @@ function App() {
           </div>
 
           {/* Card decks + discard piles */}
-          <div className="flex flex-col gap-3 self-start pt-4 items-center">
-            {/* Bird deck + discard + Bonus deck + discard */}
+          <div className="flex flex-col gap-4 self-start pt-4 items-start">
             <div className="flex items-start gap-4">
-              <BirdDeck count={deck.length} width={DECK_CARD_WIDTH} height={DECK_CARD_HEIGHT} onDraw={drawCard} />
-              <BirdDiscardPile
-                cards={birdDiscard}
-                width={DECK_CARD_WIDTH}
-                height={DECK_CARD_HEIGHT}
-                onClick={() => birdDiscard.length > 0 && setDiscardModal("bird")}
-              />
               <BonusDeck
                 count={bonusDeck.length}
                 width={DECK_BONUS_WIDTH}
@@ -637,8 +629,15 @@ function App() {
                 onClick={() => bonusDiscard.length > 0 && setDiscardModal("bonus")}
               />
             </div>
-
-            {/* Bird tray (3 face-up cards) + Hummingbird deck/discard */}
+            <div className="flex items-start gap-4">
+              <BirdDeck count={deck.length} width={DECK_CARD_WIDTH} height={DECK_CARD_HEIGHT} onDraw={drawCard} />
+              <BirdDiscardPile
+                cards={birdDiscard}
+                width={DECK_CARD_WIDTH}
+                height={DECK_CARD_HEIGHT}
+                onClick={() => birdDiscard.length > 0 && setDiscardModal("bird")}
+              />
+            </div>
             <div className="flex items-start gap-3">
               <BirdTray
                 cards={birdTray}
@@ -649,7 +648,7 @@ function App() {
                 onRefill={trayRefill}
                 onReset={trayReset}
               />
-              <div className="flex flex-col items-center gap-2">
+              <div className="flex flex-col items-center gap-3 pt-1">
                 <HummingbirdDeck
                   count={hummingbirdDeck.length}
                   width={DECK_HUMMINGBIRD_WIDTH}
@@ -659,13 +658,10 @@ function App() {
                 <HummingbirdDiscardPile
                   cards={hummingbirdDiscard}
                   width={DECK_HUMMINGBIRD_WIDTH}
-                  height={DECK_HUMMINGBIRD_HEIGHT}
                   onClick={() => hummingbirdDiscard.length > 0 && setDiscardModal("hummingbird")}
                 />
               </div>
             </div>
-
-            {/* Hummingbird tray (5 face-up cards) */}
             <HummingbirdTray
               cards={hummingbirdTray}
               cardWidth={DECK_HUMMINGBIRD_WIDTH}

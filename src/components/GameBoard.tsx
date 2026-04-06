@@ -257,9 +257,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   }
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col gap-1">
       {/* Header: player name + personal supply */}
-      <div className="flex items-center justify-between mb-1 pl-2">
+      <div className="flex items-center justify-between pl-2">
         <span
           className="font-bold drop-shadow"
           style={{

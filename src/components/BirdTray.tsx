@@ -18,13 +18,13 @@ export function BirdTray({ cards, cardWidth, cardHeight, onAddToHand, onDiscard,
 
   return (
     <div
-      className="flex flex-col items-center gap-2 rounded-lg p-2 bg-cover bg-center self-center"
+      className="flex items-stretch gap-0 rounded-lg p-1 bg-cover bg-center self-center"
       style={{
         backgroundImage: `url(${trayBg})`,
         border: "2px solid rgba(255,255,255,0.3)",
       }}
     >
-      <div className="flex items-start gap-3">
+      <div className="flex items-start gap-2">
         {cards.map((card, i) => (
           <div key={card?.id ?? `empty-${i}`} className="relative">
             {card ? (
@@ -95,16 +95,17 @@ export function BirdTray({ cards, cardWidth, cardHeight, onAddToHand, onDiscard,
           </div>
         ))}
       </div>
-      <div className="flex gap-2">
+      <div className="flex flex-col gap-1 ml-1 justify-center">
         <button
           onClick={(e) => {
             e.stopPropagation();
             onRefill();
           }}
-          className="px-2 py-1 rounded text-[0.6rem] font-bold text-white/80 cursor-pointer transition-colors hover:text-white hover:bg-white/15"
+          className="px-1 py-2 rounded text-[0.6rem] font-bold text-white/80 cursor-pointer transition-colors hover:text-white hover:bg-white/15"
           style={{
             background: "rgba(0,0,0,0.3)",
             fontFamily: "CardenioModernBold, sans-serif",
+            writingMode: "vertical-rl",
           }}
         >
           Refill
@@ -114,10 +115,11 @@ export function BirdTray({ cards, cardWidth, cardHeight, onAddToHand, onDiscard,
             e.stopPropagation();
             onReset();
           }}
-          className="px-2 py-1 rounded text-[0.6rem] font-bold text-white/80 cursor-pointer transition-colors hover:text-white hover:bg-white/15"
+          className="px-1 py-2 rounded text-[0.6rem] font-bold text-white/80 cursor-pointer transition-colors hover:text-white hover:bg-white/15"
           style={{
             background: "rgba(0,0,0,0.3)",
             fontFamily: "CardenioModernBold, sans-serif",
+            writingMode: "vertical-rl",
           }}
         >
           Reset
