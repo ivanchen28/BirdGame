@@ -17,7 +17,6 @@ import { HummingbirdCardDisplay } from "./components/HummingbirdCardDisplay";
 import { HummingbirdDeck } from "./components/HummingbirdDeck";
 import { HummingbirdDiscardPile } from "./components/HummingbirdDiscardPile";
 import { HummingbirdTrack } from "./components/HummingbirdTrack";
-import { PersonalSupplyDisplay } from "./components/PersonalSupplyDisplay";
 import { foodUrl, iconUrl } from "./icons";
 import {
   createPlayer,
@@ -27,6 +26,7 @@ import {
   type FoodType,
   type HabitatType,
   type HummingbirdCard,
+  type HummingbirdGroup,
   type Player,
 } from "./types";
 
@@ -52,11 +52,11 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-const HAND_CARD_HEIGHT = 220;
+const HAND_CARD_HEIGHT = 185;
 const HAND_CARD_WIDTH = HAND_CARD_HEIGHT * 0.655;
 const BONUS_CARD_WIDTH = HAND_CARD_HEIGHT * (1 / 1.526);
 const HAND_PADDING = 16;
-const HAND_AREA_HEIGHT = HAND_CARD_HEIGHT + 32;
+const HAND_AREA_HEIGHT = HAND_CARD_HEIGHT + 12;
 
 const DECK_CARD_HEIGHT = 180;
 const DECK_CARD_WIDTH = DECK_CARD_HEIGHT * 0.655;
@@ -319,6 +319,16 @@ function App() {
     [player],
   );
 
+  const moveHummingbird = useCallback((group: HummingbirdGroup, delta: number) => {
+    setPlayer((prev) => ({
+      ...prev,
+      hummingbirdTrack: {
+        ...prev.hummingbirdTrack,
+        [group]: prev.hummingbirdTrack[group] + delta,
+      },
+    }));
+  }, []);
+
   const addBirdToHand = useCallback(
     (birdId: number) => {
       const bird = birdDiscard.find((b) => b.id === birdId);
@@ -384,7 +394,7 @@ function App() {
         style={{ height: `calc(100vh - ${HAND_AREA_HEIGHT}px)` }}
       >
         {/* Game board (top-left) */}
-        <div className="self-start flex items-start gap-3" style={{ height: "calc(100% - 24px)" }}>
+        <div className="self-start flex items-start gap-2" style={{ height: "calc(100% - 24px)" }}>
           <GameBoard
             player={player}
             placingBird={placingBird}
@@ -414,14 +424,47 @@ function App() {
                 };
               });
             }}
+            onUseFood={removeFood}
+            onStartCache={(food) => setCachingFood(food)}
           />
 
-          {/* Bird feeder + egg/food piles */}
-          <div className="flex flex-col items-center justify-end gap-3 self-stretch">
-            <BirdFeeder />
+          {/* Bird feeder + Food piles + Eggs + Hummingbird track */}
+          <div className="flex flex-col items-stretch gap-2 self-start">
+            <BirdFeeder size={186} />
+            {/* Food pile buttons */}
+            <div className="grid grid-cols-3 gap-1 justify-items-center px-2 py-1">
+              {(["invertebrate", "seed", "fruit", "fish", "rodent", "nectar"] as const).map((food) => (
+                <button
+                  key={food}
+                  className="flex flex-col items-center gap-0.5 group cursor-pointer"
+                  onClick={() => gainFood(food)}
+                >
+                  <div
+                    className="relative rounded-full flex items-center justify-center transition-all group-hover:ring-2 group-hover:ring-yellow-400 group-hover:shadow-[0_0_12px_rgba(250,204,21,0.6)]"
+                    style={{
+                      width: 50,
+                      height: 50,
+                      background: "rgba(0,0,0,0.35)",
+                      border: "2px solid rgba(255,255,255,0.6)",
+                    }}
+                  >
+                    <img src={foodUrl(food)} alt={food} className="h-8 drop-shadow" />
+                  </div>
+                  <span
+                    className="text-white/80 drop-shadow"
+                    style={{
+                      fontFamily: "CardenioModernBold, SiliciStrong, sans-serif",
+                      fontSize: "0.5rem",
+                    }}
+                  >
+                    {FOOD_DISPLAY_NAMES[food]}
+                  </span>
+                </button>
+              ))}
+            </div>
             {/* Egg pile button */}
             <button
-              className="flex flex-col items-center gap-1 group cursor-pointer"
+              className="flex flex-col items-center gap-1 group cursor-pointer self-center"
               onClick={(e) => {
                 e.stopPropagation();
                 setLayingEggs(!layingEggs);
@@ -431,7 +474,7 @@ function App() {
                 className={`relative rounded-full flex items-center justify-center transition-shadow ${
                   layingEggs
                     ? "ring-2 ring-yellow-400 shadow-[0_0_12px_rgba(250,204,21,0.6)]"
-                    : "group-hover:shadow-[0_0_12px_rgba(255,255,255,0.3)]"
+                    : "group-hover:ring-2 group-hover:ring-yellow-400 group-hover:shadow-[0_0_12px_rgba(250,204,21,0.6)]"
                 }`}
                 style={{
                   width: 52,
@@ -452,59 +495,7 @@ function App() {
                 {layingEggs ? "CANCEL" : "LAY EGGS"}
               </span>
             </button>
-
-            {/* Food pile buttons */}
-            <div className="grid grid-cols-2 gap-2">
-              {(["invertebrate", "seed", "fruit", "fish", "rodent", "nectar"] as const).map((food) => (
-                <button
-                  key={food}
-                  className="flex flex-col items-center gap-0.5 group cursor-pointer"
-                  onClick={() => gainFood(food)}
-                >
-                  <div
-                    className="relative rounded-full flex items-center justify-center transition-shadow group-hover:shadow-[0_0_12px_rgba(255,255,255,0.3)]"
-                    style={{
-                      width: 44,
-                      height: 44,
-                      background: "rgba(0,0,0,0.35)",
-                      border: "2px solid rgba(255,255,255,0.6)",
-                    }}
-                  >
-                    <img src={foodUrl(food)} alt={food} className="h-7 drop-shadow" />
-                  </div>
-                  <span
-                    className="text-white/80 drop-shadow"
-                    style={{
-                      fontFamily: "CardenioModernBold, SiliciStrong, sans-serif",
-                      fontSize: "0.5rem",
-                    }}
-                  >
-                    {FOOD_DISPLAY_NAMES[food]}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Hummingbird track + Personal supply */}
-          <div className="flex flex-col items-center gap-2">
-            <HummingbirdTrack
-              player={player}
-              onMove={(group, delta) => {
-                setPlayer((prev) => ({
-                  ...prev,
-                  hummingbirdTrack: {
-                    ...prev.hummingbirdTrack,
-                    [group]: prev.hummingbirdTrack[group] + delta,
-                  },
-                }));
-              }}
-            />
-            <PersonalSupplyDisplay
-              player={player}
-              onUseFood={removeFood}
-              onStartCache={(food) => setCachingFood(food)}
-            />
+            <HummingbirdTrack player={player} onMove={moveHummingbird} />
           </div>
         </div>
 
@@ -563,7 +554,7 @@ function App() {
         {/* Card dock */}
         <div className="flex-1 min-w-0">
           {dockItems.length > 0 && (
-            <CardDock items={dockItems} baseHeight={HAND_CARD_HEIGHT} maxScale={1.5} padding={HAND_PADDING} />
+            <CardDock items={dockItems} baseHeight={HAND_CARD_HEIGHT} maxScale={1.8} padding={HAND_PADDING} />
           )}
         </div>
       </div>

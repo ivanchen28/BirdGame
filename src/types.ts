@@ -175,6 +175,7 @@ export interface Habitat {
 export interface Player {
   name: string;
   cubeColor: string;
+  actionCubes: number;
   birdHand: BirdCard[];
   bonusHand: BonusCard[];
   food: FoodSupply;
@@ -187,6 +188,7 @@ export function createPlayer(name: string, cubeColor: string): Player {
   return {
     name,
     cubeColor,
+    actionCubes: 8,
     birdHand: [],
     bonusHand: [],
     food: { invertebrate: 0, seed: 0, fish: 0, fruit: 0, rodent: 0, nectar: 0 },
