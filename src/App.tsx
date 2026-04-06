@@ -13,6 +13,7 @@ import { BonusDiscardPile } from "./components/BonusDiscardPile";
 import { CardDock } from "./components/CardDock";
 import { CardListModal } from "./components/CardListModal";
 import { CardWithDiscard } from "./components/CardWithDiscard";
+import { EndOfRoundGoalBoard } from "./components/EndOfRoundGoalBoard";
 import { GameBoard } from "./components/GameBoard";
 import { HummingbirdCardDisplay } from "./components/HummingbirdCardDisplay";
 import { HummingbirdDeck } from "./components/HummingbirdDeck";
@@ -613,30 +614,35 @@ function App() {
             <HummingbirdTrack player={player} onMove={moveHummingbird} />
           </div>
 
-          {/* Card decks + discard piles */}
+          {/* Card decks + discard piles + end of round goals */}
           <div className="flex flex-col gap-4 self-start pt-4 items-start">
-            <div className="flex items-start gap-4">
-              <BonusDeck
-                count={bonusDeck.length}
-                width={DECK_BONUS_WIDTH}
-                height={DECK_CARD_HEIGHT}
-                onDraw={drawBonusCard}
-              />
-              <BonusDiscardPile
-                cards={bonusDiscard}
-                width={DECK_BONUS_WIDTH}
-                height={DECK_CARD_HEIGHT}
-                onClick={() => bonusDiscard.length > 0 && setDiscardModal("bonus")}
-              />
-            </div>
-            <div className="flex items-start gap-4">
-              <BirdDeck count={deck.length} width={DECK_CARD_WIDTH} height={DECK_CARD_HEIGHT} onDraw={drawCard} />
-              <BirdDiscardPile
-                cards={birdDiscard}
-                width={DECK_CARD_WIDTH}
-                height={DECK_CARD_HEIGHT}
-                onClick={() => birdDiscard.length > 0 && setDiscardModal("bird")}
-              />
+            <div className="flex items-center gap-4">
+              <div className="flex flex-col gap-4">
+                <div className="flex items-start gap-4">
+                  <BonusDeck
+                    count={bonusDeck.length}
+                    width={DECK_BONUS_WIDTH}
+                    height={DECK_CARD_HEIGHT}
+                    onDraw={drawBonusCard}
+                  />
+                  <BonusDiscardPile
+                    cards={bonusDiscard}
+                    width={DECK_BONUS_WIDTH}
+                    height={DECK_CARD_HEIGHT}
+                    onClick={() => bonusDiscard.length > 0 && setDiscardModal("bonus")}
+                  />
+                </div>
+                <div className="flex items-start gap-4">
+                  <BirdDeck count={deck.length} width={DECK_CARD_WIDTH} height={DECK_CARD_HEIGHT} onDraw={drawCard} />
+                  <BirdDiscardPile
+                    cards={birdDiscard}
+                    width={DECK_CARD_WIDTH}
+                    height={DECK_CARD_HEIGHT}
+                    onClick={() => birdDiscard.length > 0 && setDiscardModal("bird")}
+                  />
+                </div>
+              </div>
+              <EndOfRoundGoalBoard />
             </div>
             <div className="flex items-start gap-3">
               <BirdTray

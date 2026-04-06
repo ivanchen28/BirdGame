@@ -1,0 +1,122 @@
+[
+  {
+    "Goal": "[duet_token] in [forest]",
+    "Set": "asia",
+    "1": null,
+    "2": null,
+    "3": null,
+    "4": null,
+    "Reverse": "[duet_token] on pairs of matching symbols",
+    "id": 3034
+  },
+  {
+    "Goal": "[duet_token] in [grassland]",
+    "Set": "asia",
+    "1": null,
+    "2": null,
+    "3": null,
+    "4": null,
+    "Reverse": "total [duet_token] on map",
+    "id": 3035
+  },
+  {
+    "Goal": "[duet_token] in [wetland]",
+    "Set": "asia",
+    "1": null,
+    "2": null,
+    "3": null,
+    "4": null,
+    "Reverse": "fewest [duet_token] on bonus spaces",
+    "id": 3036
+  },
+  {
+    "Goal": "[duet_token] in any one horizontal row",
+    "Set": "asia",
+    "1": null,
+    "2": null,
+    "3": null,
+    "4": null,
+    "Reverse": "horizontal rows with at least 1 of your [duet_token]",
+    "id": 3037
+  },
+  {
+    "Goal": "[duet_token] not on edge of map",
+    "Set": "asia",
+    "1": null,
+    "2": null,
+    "3": null,
+    "4": null,
+    "Reverse": "[duet_token] on edge of map",
+    "id": 3038
+  },
+  {
+    "Goal": "[duet_token] on [bowl] [cavity] [ground] [platform]",
+    "Set": "asia",
+    "1": null,
+    "2": null,
+    "3": null,
+    "4": null,
+    "Reverse": "[duet_token] on [fish] [fruit] [rodent] [seed] [invertebrate]",
+    "id": 3039
+  },
+  {
+    "Goal": "[duet_token] on [fish] [fruit] [rodent] [seed] [invertebrate]",
+    "Set": "asia",
+    "1": null,
+    "2": null,
+    "3": null,
+    "4": null,
+    "Reverse": "[duet_token] on [bowl] [cavity] [ground] [platform]",
+    "id": 3040
+  },
+  {
+    "Goal": "[duet_token] on edge of map",
+    "Set": "asia",
+    "1": null,
+    "2": null,
+    "3": null,
+    "4": null,
+    "Reverse": "[duet_token] not on edge of map",
+    "id": 3041
+  },
+  {
+    "Goal": "[duet_token] on pairs of matching symbols",
+    "Set": "asia",
+    "1": null,
+    "2": null,
+    "3": null,
+    "4": null,
+    "Reverse": "[duet_token] in [forest]",
+    "id": 3042
+  },
+  {
+    "Goal": "fewest [duet_token] on bonus spaces",
+    "Set": "asia",
+    "1": null,
+    "2": null,
+    "3": null,
+    "4": null,
+    "Reverse": "[duet_token] in [wetland]",
+    "id": 3043
+  },
+  {
+    "Goal": "horizontal rows with at least 1 of your [duet_token]",
+    "Set": "asia",
+    "1": null,
+    "2": null,
+    "3": null,
+    "4": null,
+    "Reverse": "[duet_token] in any one horizontal row",
+    "id": 3044
+  },
+  {
+    "Goal": "total [duet_token] on map",
+    "Set": "asia",
+    "1": null,
+    "2": null,
+    "3": null,
+    "4": null,
+    "Reverse": "[duet_token] in [grassland]",
+    "id": 3045
+  }
+]
