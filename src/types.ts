@@ -40,6 +40,7 @@ export interface BirdCard {
 // ── Hummingbird Cards ──
 
 export type HummingbirdGroup = "bee" | "brilliant" | "emerald" | "mango" | "topaz";
+export const HummingbirdGroups: HummingbirdGroup[] = ["bee", "brilliant", "emerald", "mango", "topaz"];
 export type HummingbirdBenefit = "nectar" | "egg" | "card" | "advance" | "row";
 
 export interface HummingbirdCard {
@@ -52,6 +53,22 @@ export interface HummingbirdCard {
   Cartographer: string | null;
   Photographer: string | null;
   id: number;
+}
+
+/**
+ * Each column on the hummingbird track has hummingbird icons at two specific rows.
+ * Row indices are bottom-up: 0 = bottom (icon/start row), 8 = top (10 pts).
+ * Pattern N places icons at rows N and N+4. Two columns get pattern 4, one each gets 3, 2, 1.
+ * The array has 5 elements, one per group column (bee, brilliant, emerald, mango, topaz).
+ */
+function generateTrackPattern(): number[] {
+  const patterns = [4, 4, 3, 2, 1];
+  // Fisher-Yates shuffle
+  for (let i = patterns.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [patterns[i], patterns[j]] = [patterns[j], patterns[i]];
+  }
+  return patterns;
 }
 
 // ── Bonus Cards ──
@@ -141,13 +158,13 @@ export function rollDie(die: Die): Die {
 
 // ── Habitats ──
 
-export const HABITAT_TYPES = ["forest", "grassland", "wetland"] as const;
-export type HabitatType = (typeof HABITAT_TYPES)[number];
+export const HabitatTypes = ["forest", "grassland", "wetland"] as const;
+export type HabitatType = (typeof HabitatTypes)[number];
 
 export interface Habitat {
   type: HabitatType;
   birds: PlayedBirdCard[];
-  hummingbird: HummingbirdCard | null;
+  hummingbird?: HummingbirdCard;
   spentNectar: number;
   actionCubes: number;
   activeCube?: number;
@@ -162,6 +179,8 @@ export interface Player {
   bonusHand: BonusCard[];
   food: FoodSupply;
   habitats: Record<HabitatType, Habitat>;
+  hummingbirdTrack: Record<HummingbirdGroup, number>;
+  hummingbirdTrackPattern: number[];
 }
 
 export function createPlayer(name: string, cubeColor: string): Player {
@@ -171,17 +190,33 @@ export function createPlayer(name: string, cubeColor: string): Player {
     birdHand: [],
     bonusHand: [],
     food: { invertebrate: 0, seed: 0, fish: 0, fruit: 0, rodent: 0, nectar: 0 },
+    hummingbirdTrack: { bee: 0, brilliant: 0, emerald: 0, mango: 0, topaz: 0 },
+    hummingbirdTrackPattern: generateTrackPattern(),
     habitats: {
-      forest: { type: "forest", birds: [], hummingbird: null, spentNectar: 0, actionCubes: 0, activeCube: undefined },
-      grassland: {
-        type: "grassland",
+      forest: {
+        type: "forest",
         birds: [],
-        hummingbird: null,
+        hummingbird: undefined,
         spentNectar: 0,
         actionCubes: 0,
         activeCube: undefined,
       },
-      wetland: { type: "wetland", birds: [], hummingbird: null, spentNectar: 0, actionCubes: 0, activeCube: undefined },
+      grassland: {
+        type: "grassland",
+        birds: [],
+        hummingbird: undefined,
+        spentNectar: 0,
+        actionCubes: 0,
+        activeCube: undefined,
+      },
+      wetland: {
+        type: "wetland",
+        birds: [],
+        hummingbird: undefined,
+        spentNectar: 0,
+        actionCubes: 0,
+        activeCube: undefined,
+      },
     },
   };
 }

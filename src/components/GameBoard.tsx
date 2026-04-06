@@ -1,9 +1,8 @@
-import { useState } from "react";
 import boardBg from "../../assets/board-background.jpg";
 import birdBack from "../../assets/cards/backgrounds/bird-background.jpg";
 import { foodUrl, habitatUrl, hummingbirdUrl, iconUrl, powerBgUrl } from "../icons";
 import {
-  HABITAT_TYPES,
+  HabitatTypes,
   type BirdCard,
   type FoodType,
   type HabitatType,
@@ -241,11 +240,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   onDiscardHummingbird,
   onNectarChange,
 }) => {
-  const [hoveredNectar, setHoveredNectar] = useState<HabitatType | null>(null);
   // Compute which habitats have a valid empty slot for the bird being placed
   const highlightedHabitats = new Set<HabitatType>();
   if (placingBird) {
-    for (const h of HABITAT_TYPES) {
+    for (const h of HabitatTypes) {
       const key = (h.charAt(0).toUpperCase() + h.slice(1)) as "Forest" | "Grassland" | "Wetland";
       if (placingBird[key] && player.habitats[h].birds.length < 5) {
         highlightedHabitats.add(h);
@@ -258,6 +256,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       className="relative rounded-xl overflow-hidden shadow-lg"
       style={{
         height: "720px",
+        minWidth: "1020px",
         backgroundImage: `url(${boardBg})`,
         backgroundSize: "cover",
         backgroundPosition: "left center",
@@ -317,8 +316,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({
               {/* Habitat info */}
               <div className="flex flex-col items-center pt-2 gap-1 px-2">
                 <img
-                  src={habitatUrl(`${HABITAT_TYPES[row]}-glow`)}
-                  alt={HABITAT_TYPES[row]}
+                  src={habitatUrl(`${HabitatTypes[row]}-glow`)}
+                  alt={HabitatTypes[row]}
                   className="w-10 drop-shadow"
                 />
                 <span
@@ -329,18 +328,18 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                     maxWidth: "4.5rem",
                   }}
                 >
-                  {HABITAT_TITLES[HABITAT_TYPES[row]]}
+                  {HABITAT_TITLES[HabitatTypes[row]]}
                 </span>
                 <div
-                  className={`relative grid grid-cols-[2rem_1fr] items-center gap-1 rounded-md border-2 border-white/30 px-1.5 py-1 transition-colors ${
-                    hoveredNectar === HABITAT_TYPES[row] ? "bg-white/40" : "bg-white/15"
-                  }`}
+                  className="relative grid grid-cols-[2rem_1fr] items-center gap-1 rounded-md border-2 border-white/30 px-1.5 py-1 cursor-pointer transition-colors hover:bg-white/40 bg-white/15"
                   style={{ width: "5.5rem", height: "2.75rem" }}
-                  onMouseEnter={() => setHoveredNectar(HABITAT_TYPES[row])}
-                  onMouseLeave={() => setHoveredNectar(null)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onNectarChange?.(HabitatTypes[row], e.shiftKey ? -1 : 1);
+                  }}
                 >
                   <div className="relative w-8 h-8 flex-shrink-0">
-                    {player.habitats[HABITAT_TYPES[row]].spentNectar > 0 ? (
+                    {player.habitats[HabitatTypes[row]].spentNectar > 0 ? (
                       <>
                         <img
                           src={foodUrl("nectar")}
@@ -355,52 +354,29 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                             textShadow: "0 0 4px rgba(0,0,0,0.8)",
                           }}
                         >
-                          {player.habitats[HABITAT_TYPES[row]].spentNectar}
+                          {player.habitats[HabitatTypes[row]].spentNectar}
                         </span>
                       </>
                     ) : (
                       <img src={iconUrl("spent_nectar")} alt="spent nectar" className="w-8 drop-shadow" />
                     )}
                   </div>
-                  {hoveredNectar === HABITAT_TYPES[row] ? (
-                    <div className="flex flex-col items-center justify-center h-full">
-                      <button
-                        className="flex-1 w-full flex items-center justify-center text-white/90 hover:text-white text-md leading-none cursor-pointer"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onNectarChange?.(HABITAT_TYPES[row], 1);
-                        }}
-                      >
-                        +
-                      </button>
-                      <button
-                        className="flex-1 w-full flex items-center justify-center text-white/90 hover:text-white text-md leading-none cursor-pointer"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onNectarChange?.(HABITAT_TYPES[row], -1);
-                        }}
-                      >
-                        −
-                      </button>
-                    </div>
-                  ) : (
-                    <div
-                      className="text-white/80 text-center leading-tight drop-shadow"
-                      style={{
-                        fontFamily: "CardenioModernBold, SiliciStrong, sans-serif",
-                        fontSize: "0.5rem",
-                      }}
-                    >
-                      GAME END:
-                      <br />
-                      <span className="inline-flex items-center">
-                        5/2 <img src={iconUrl("point")} alt="pts" className="inline pr-0.5 h-2.5 brightness-0 invert" />{" "}
-                        FOR
-                      </span>
-                      <br />
-                      MAJORITY
-                    </div>
-                  )}
+                  <div
+                    className="text-white/80 text-center leading-tight drop-shadow"
+                    style={{
+                      fontFamily: "CardenioModernBold, SiliciStrong, sans-serif",
+                      fontSize: "0.5rem",
+                    }}
+                  >
+                    GAME END:
+                    <br />
+                    <span className="inline-flex items-center">
+                      5/2 <img src={iconUrl("point")} alt="pts" className="inline pr-0.5 h-2.5 brightness-0 invert" />{" "}
+                      FOR
+                    </span>
+                    <br />
+                    MAJORITY
+                  </div>
                 </div>
                 <div className="relative">
                   <img
@@ -429,7 +405,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                 style={{ width: 720 * 0.315 * HUMMINGBIRD_SCALE * CARD_RATIO }}
               >
                 {(() => {
-                  const h = HABITAT_TYPES[row];
+                  const h = HabitatTypes[row];
                   const hb = player.habitats[h].hummingbird;
                   const isOpen = !hb && !!placingHummingbird;
 
@@ -489,7 +465,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             </div>
             {/* Bird slots */}
             {Array.from({ length: 5 }, (_, col) => {
-              const h = HABITAT_TYPES[row];
+              const h = HabitatTypes[row];
               const habitatBirds = player.habitats[h].birds;
               const bird = habitatBirds[col];
               const isFirstEmpty = !bird && col === habitatBirds.length;

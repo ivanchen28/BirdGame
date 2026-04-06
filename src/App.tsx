@@ -16,6 +16,7 @@ import { GameBoard } from "./components/GameBoard";
 import { HummingbirdCardDisplay } from "./components/HummingbirdCardDisplay";
 import { HummingbirdDeck } from "./components/HummingbirdDeck";
 import { HummingbirdDiscardPile } from "./components/HummingbirdDiscardPile";
+import { HummingbirdTrack } from "./components/HummingbirdTrack";
 import { PersonalSupplyDisplay } from "./components/PersonalSupplyDisplay";
 import { foodUrl, iconUrl } from "./icons";
 import {
@@ -485,8 +486,26 @@ function App() {
             </div>
           </div>
 
-          {/* Personal supply */}
-          <PersonalSupplyDisplay player={player} onUseFood={removeFood} onStartCache={(food) => setCachingFood(food)} />
+          {/* Hummingbird track + Personal supply */}
+          <div className="flex flex-col items-center gap-2">
+            <HummingbirdTrack
+              player={player}
+              onMove={(group, delta) => {
+                setPlayer((prev) => ({
+                  ...prev,
+                  hummingbirdTrack: {
+                    ...prev.hummingbirdTrack,
+                    [group]: prev.hummingbirdTrack[group] + delta,
+                  },
+                }));
+              }}
+            />
+            <PersonalSupplyDisplay
+              player={player}
+              onUseFood={removeFood}
+              onStartCache={(food) => setCachingFood(food)}
+            />
+          </div>
         </div>
 
         {/* Deck area (right side) */}
