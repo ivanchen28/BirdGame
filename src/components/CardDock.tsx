@@ -14,7 +14,6 @@ interface CardDockProps {
   maxScale?: number;
   /** Radius of influence in pixels (default 250) */
   radius?: number;
-  padding?: number;
   /** Gap between cards in pixels when there's room (default 8) */
   gap?: number;
 }
@@ -24,7 +23,7 @@ interface CardDockProps {
  * Cards near the cursor scale up; cards further away stay at base size.
  * Uses refs + imperative spring updates to avoid React re-renders on mouse move.
  */
-export function CardDock({ items, baseHeight, maxScale = 1.35, radius = 250, padding = 16, gap = 8 }: CardDockProps) {
+export function CardDock({ items, baseHeight, maxScale = 1.35, radius = 250, gap = 8 }: CardDockProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mouseXRef = useRef<number | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -120,14 +119,16 @@ export function CardDock({ items, baseHeight, maxScale = 1.35, radius = 250, pad
   // Compute spacing: use desired gap, but overlap if hand is too wide
   const marginBetween = useMemo(() => {
     if (items.length <= 1) return 0;
-    const availableWidth = typeof window !== "undefined" ? window.innerWidth - padding * 2 : 1200;
+    const containerWidth =
+      containerRef.current?.clientWidth ?? (typeof window !== "undefined" ? window.innerWidth : 1200);
+    const availableWidth = containerWidth;
     const totalBaseWidth = items.reduce((sum, item) => sum + item.baseWidth, 0);
     const totalWithGaps = totalBaseWidth + gap * (items.length - 1);
     if (totalWithGaps <= availableWidth) return gap;
     // Need to overlap
     const overlap = (totalBaseWidth - availableWidth) / (items.length - 1);
     return -overlap;
-  }, [items, padding, gap]);
+  }, [items, gap]);
 
   const registerCard = useCallback(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -144,9 +145,8 @@ export function CardDock({ items, baseHeight, maxScale = 1.35, radius = 250, pad
   return (
     <div
       ref={containerRef}
-      className="flex items-end justify-center shrink-0"
+      className="flex items-end justify-start shrink-0"
       style={{
-        padding: `8px ${padding}px`,
         minHeight: baseHeight + 16,
         maxWidth: "100vw",
         overflow: "visible",

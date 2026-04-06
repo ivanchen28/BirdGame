@@ -6,6 +6,7 @@ import { BirdCardDisplay } from "./components/BirdCardDisplay";
 import { BirdDeck } from "./components/BirdDeck";
 import { BirdDiscardPile } from "./components/BirdDiscardPile";
 import { BirdFeeder } from "./components/BirdFeeder";
+import { BirdTray } from "./components/BirdTray";
 import { BonusCardDisplay } from "./components/BonusCardDisplay";
 import { BonusDeck } from "./components/BonusDeck";
 import { BonusDiscardPile } from "./components/BonusDiscardPile";
@@ -17,6 +18,7 @@ import { HummingbirdCardDisplay } from "./components/HummingbirdCardDisplay";
 import { HummingbirdDeck } from "./components/HummingbirdDeck";
 import { HummingbirdDiscardPile } from "./components/HummingbirdDiscardPile";
 import { HummingbirdTrack } from "./components/HummingbirdTrack";
+import { HummingbirdTray } from "./components/HummingbirdTray";
 import { foodUrl, iconUrl } from "./icons";
 import {
   createPlayer,
@@ -55,7 +57,6 @@ function shuffle<T>(arr: T[]): T[] {
 const HAND_CARD_HEIGHT = 185;
 const HAND_CARD_WIDTH = HAND_CARD_HEIGHT * 0.655;
 const BONUS_CARD_WIDTH = HAND_CARD_HEIGHT * (1 / 1.526);
-const HAND_PADDING = 16;
 const HAND_AREA_HEIGHT = HAND_CARD_HEIGHT + 12;
 
 const DECK_CARD_HEIGHT = 180;
@@ -67,14 +68,21 @@ const DECK_HUMMINGBIRD_HEIGHT = DECK_CARD_HEIGHT * HUMMINGBIRD_SCALE;
 const DECK_HUMMINGBIRD_WIDTH = DECK_HUMMINGBIRD_HEIGHT * 0.655;
 
 function App() {
-  const [deck, setDeck] = useState(() => shuffle(allBirds));
+  const [initialDeck] = useState(() => shuffle(allBirds));
+  const [deck, setDeck] = useState(() => initialDeck.slice(3));
+  const [birdTray, setBirdTray] = useState<(BirdCard | null)[]>(() => initialDeck.slice(0, 3));
   const [bonusDeck, setBonusDeck] = useState(() => shuffle(allBonuses));
   const [player, setPlayer] = useState<Player>(() => createPlayer("Player 1", "white"));
   const [birdDiscard, setBirdDiscard] = useState<BirdCard[]>([]);
   const [bonusDiscard, setBonusDiscard] = useState<BonusCard[]>([]);
-  const [hummingbirdDeck, setHummingbirdDeck] = useState(() => shuffle(allHummingbirds));
+  const [initialHummingbirdDeck] = useState(() => shuffle(allHummingbirds));
+  const [hummingbirdDeck, setHummingbirdDeck] = useState(() => initialHummingbirdDeck.slice(5));
+  const [hummingbirdTray, setHummingbirdTray] = useState<(HummingbirdCard | null)[]>(() =>
+    initialHummingbirdDeck.slice(0, 5),
+  );
   const [hummingbirdDiscard, setHummingbirdDiscard] = useState<HummingbirdCard[]>([]);
   const [placingHummingbird, setPlacingHummingbird] = useState<HummingbirdCard | null>(null);
+  const [placingHummingbirdSource, setPlacingHummingbirdSource] = useState<"deck" | number | null>(null);
   const [discardModal, setDiscardModal] = useState<"bird" | "bonus" | "hummingbird" | null>(null);
   const [placingBird, setPlacingBird] = useState<BirdCard | null>(null);
   const [tuckingBird, setTuckingBird] = useState<BirdCard | null>(null);
@@ -255,6 +263,65 @@ function App() {
     setDeck((prev) => prev.slice(1));
   };
 
+  const trayAddToHand = useCallback(
+    (index: number) => {
+      const card = birdTray[index];
+      if (!card) return;
+      setPlayer((prev) => ({ ...prev, birdHand: [...prev.birdHand, card] }));
+      setBirdTray((prev) => {
+        const next = [...prev];
+        next[index] = null;
+        return next;
+      });
+    },
+    [birdTray],
+  );
+
+  const trayDiscard = useCallback(
+    (index: number) => {
+      const card = birdTray[index];
+      if (!card) return;
+      setBirdDiscard((prev) => [...prev, card]);
+      setBirdTray((prev) => {
+        const next = [...prev];
+        next[index] = null;
+        return next;
+      });
+    },
+    [birdTray],
+  );
+
+  const trayRefill = useCallback(() => {
+    setBirdTray((prev) => {
+      const next = [...prev];
+      let taken = 0;
+      for (let i = 0; i < next.length; i++) {
+        if (next[i] === null && taken < deck.length) {
+          next[i] = deck[taken];
+          taken++;
+        }
+      }
+      setDeck((d) => d.slice(taken));
+      return next;
+    });
+  }, [deck]);
+
+  const trayReset = useCallback(() => {
+    // Discard all remaining tray cards, then refill all slots
+    const discarded = birdTray.filter((c): c is BirdCard => c !== null);
+    if (discarded.length > 0) {
+      setBirdDiscard((d) => [...d, ...discarded]);
+    }
+    const count = birdTray.length;
+    const available = Math.min(count, deck.length);
+    const next: (BirdCard | null)[] = [];
+    for (let i = 0; i < count; i++) {
+      next.push(i < available ? deck[i] : null);
+    }
+    setBirdTray(next);
+    setDeck((d) => d.slice(available));
+  }, [birdTray, deck]);
+
   const drawBonusCard = () => {
     if (bonusDeck.length === 0) return;
     const card = bonusDeck[0];
@@ -266,13 +333,64 @@ function App() {
     if (hummingbirdDeck.length === 0) return;
     const card = hummingbirdDeck[0];
     setPlacingHummingbird(card);
-    setHummingbirdDeck((prev) => prev.slice(1));
+    setPlacingHummingbirdSource("deck");
   };
+
+  const hummingbirdTraySelect = useCallback(
+    (index: number) => {
+      const card = hummingbirdTray[index];
+      if (!card) return;
+      setPlacingHummingbird(card);
+      setPlacingHummingbirdSource(index);
+    },
+    [hummingbirdTray],
+  );
+
+  const hummingbirdTrayRefill = useCallback(() => {
+    setHummingbirdTray((prev) => {
+      const next = [...prev];
+      let taken = 0;
+      for (let i = 0; i < next.length; i++) {
+        if (next[i] === null && taken < hummingbirdDeck.length) {
+          next[i] = hummingbirdDeck[taken];
+          taken++;
+        }
+      }
+      setHummingbirdDeck((d) => d.slice(taken));
+      return next;
+    });
+  }, [hummingbirdDeck]);
+
+  const hummingbirdTrayReset = useCallback(() => {
+    const discarded = hummingbirdTray.filter((c): c is HummingbirdCard => c !== null);
+    if (discarded.length > 0) {
+      setHummingbirdDiscard((d) => [...d, ...discarded]);
+    }
+    const count = hummingbirdTray.length;
+    const available = Math.min(count, hummingbirdDeck.length);
+    const next: (HummingbirdCard | null)[] = [];
+    for (let i = 0; i < count; i++) {
+      next.push(i < available ? hummingbirdDeck[i] : null);
+    }
+    setHummingbirdTray(next);
+    setHummingbirdDeck((d) => d.slice(available));
+  }, [hummingbirdTray, hummingbirdDeck]);
 
   const placeHummingbird = useCallback(
     (habitat: HabitatType) => {
       if (!placingHummingbird) return;
       const card = placingHummingbird;
+      // Remove from the source now that placement is confirmed
+      if (placingHummingbirdSource === "deck") {
+        setHummingbirdDeck((prev) => prev.slice(1));
+      } else if (typeof placingHummingbirdSource === "number") {
+        const idx = placingHummingbirdSource;
+        setHummingbirdTray((prev) => {
+          const next = [...prev];
+          next[idx] = null;
+          return next;
+        });
+      }
       setPlayer((prev) => ({
         ...prev,
         habitats: {
@@ -284,15 +402,15 @@ function App() {
         },
       }));
       setPlacingHummingbird(null);
+      setPlacingHummingbirdSource(null);
     },
-    [placingHummingbird],
+    [placingHummingbird, placingHummingbirdSource],
   );
 
   const cancelPlaceHummingbird = useCallback(() => {
     if (!placingHummingbird) return;
-    // Put the card back on top of the deck
-    setHummingbirdDeck((prev) => [placingHummingbird, ...prev]);
     setPlacingHummingbird(null);
+    setPlacingHummingbirdSource(null);
   }, [placingHummingbird]);
 
   const dismissAll = useCallback(() => {
@@ -385,16 +503,13 @@ function App() {
 
   return (
     <div
-      className="fixed inset-0 bg-gradient-to-br from-emerald-800 to-emerald-950 flex flex-col overflow-hidden"
+      className="fixed inset-0 bg-gradient-to-br from-emerald-800 to-emerald-950 flex overflow-hidden"
       onClick={dismissAll}
     >
-      {/* ── Main area ── */}
-      <div
-        className="flex-1 flex items-center justify-between p-2 overflow-hidden"
-        style={{ height: `calc(100vh - ${HAND_AREA_HEIGHT}px)` }}
-      >
-        {/* Game board (top-left) */}
-        <div className="self-start flex items-start gap-2" style={{ height: "calc(100% - 24px)" }}>
+      {/* ── Left side: game board row + card hand ── */}
+      <div className="flex-1 flex flex-col py-2 px-5 overflow-hidden min-w-0">
+        {/* Game board + side column row */}
+        <div className="flex items-start gap-3">
           <GameBoard
             player={player}
             placingBird={placingBird}
@@ -497,14 +612,11 @@ function App() {
             </button>
             <HummingbirdTrack player={player} onMove={moveHummingbird} />
           </div>
-        </div>
 
-        {/* Deck area (right side) */}
-        <div className="flex items-center">
-          {/* Card decks + discard piles stacked vertically */}
-          <div className="flex flex-col items-center gap-6 ml-12">
-            {/* Bird deck + discard */}
-            <div className="flex items-center gap-4">
+          {/* Card decks + discard piles */}
+          <div className="flex flex-col gap-3 self-start pt-4 items-center">
+            {/* Bird deck + discard + Bonus deck + discard */}
+            <div className="flex items-start gap-4">
               <BirdDeck count={deck.length} width={DECK_CARD_WIDTH} height={DECK_CARD_HEIGHT} onDraw={drawCard} />
               <BirdDiscardPile
                 cards={birdDiscard}
@@ -512,10 +624,6 @@ function App() {
                 height={DECK_CARD_HEIGHT}
                 onClick={() => birdDiscard.length > 0 && setDiscardModal("bird")}
               />
-            </div>
-
-            {/* Bonus deck + discard */}
-            <div className="flex items-center gap-4">
               <BonusDeck
                 count={bonusDeck.length}
                 width={DECK_BONUS_WIDTH}
@@ -530,32 +638,50 @@ function App() {
               />
             </div>
 
-            {/* Hummingbird deck + discard */}
-            <div className="flex items-center gap-4">
-              <HummingbirdDeck
-                count={hummingbirdDeck.length}
-                width={DECK_HUMMINGBIRD_WIDTH}
-                height={DECK_HUMMINGBIRD_HEIGHT}
-                onDraw={drawHummingbird}
+            {/* Bird tray (3 face-up cards) + Hummingbird deck/discard */}
+            <div className="flex items-start gap-3">
+              <BirdTray
+                cards={birdTray}
+                cardWidth={DECK_CARD_WIDTH}
+                cardHeight={DECK_CARD_HEIGHT}
+                onAddToHand={trayAddToHand}
+                onDiscard={trayDiscard}
+                onRefill={trayRefill}
+                onReset={trayReset}
               />
-              <HummingbirdDiscardPile
-                cards={hummingbirdDiscard}
-                width={DECK_HUMMINGBIRD_WIDTH}
-                height={DECK_HUMMINGBIRD_HEIGHT}
-                onClick={() => hummingbirdDiscard.length > 0 && setDiscardModal("hummingbird")}
-              />
+              <div className="flex flex-col items-center gap-2">
+                <HummingbirdDeck
+                  count={hummingbirdDeck.length}
+                  width={DECK_HUMMINGBIRD_WIDTH}
+                  height={DECK_HUMMINGBIRD_HEIGHT}
+                  onDraw={drawHummingbird}
+                />
+                <HummingbirdDiscardPile
+                  cards={hummingbirdDiscard}
+                  width={DECK_HUMMINGBIRD_WIDTH}
+                  height={DECK_HUMMINGBIRD_HEIGHT}
+                  onClick={() => hummingbirdDiscard.length > 0 && setDiscardModal("hummingbird")}
+                />
+              </div>
             </div>
+
+            {/* Hummingbird tray (5 face-up cards) */}
+            <HummingbirdTray
+              cards={hummingbirdTray}
+              cardWidth={DECK_HUMMINGBIRD_WIDTH}
+              cardHeight={DECK_HUMMINGBIRD_HEIGHT}
+              onSelect={hummingbirdTraySelect}
+              onRefill={hummingbirdTrayRefill}
+              onReset={hummingbirdTrayReset}
+            />
           </div>
         </div>
-      </div>
 
-      {/* ── Hand area (bottom) ── */}
-      <div className="flex items-end" style={{ minHeight: HAND_AREA_HEIGHT }}>
-        {/* Card dock */}
-        <div className="flex-1 min-w-0">
-          {dockItems.length > 0 && (
-            <CardDock items={dockItems} baseHeight={HAND_CARD_HEIGHT} maxScale={1.8} padding={HAND_PADDING} />
-          )}
+        {/* ── Hand area (below game board) ── */}
+        <div className="flex items-end" style={{ minHeight: HAND_AREA_HEIGHT }}>
+          <div className="flex-1 min-w-0">
+            {dockItems.length > 0 && <CardDock items={dockItems} baseHeight={HAND_CARD_HEIGHT} maxScale={1.8} />}
+          </div>
         </div>
       </div>
 

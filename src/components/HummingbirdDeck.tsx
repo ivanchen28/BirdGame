@@ -49,12 +49,14 @@ export function HummingbirdDeck({ count, width, height, onDraw }: HummingbirdDec
         style={{ boxShadow: "0 0 30px rgba(124, 58, 237, 0.4)" }}
       />
       <div
-        className="absolute -top-3 -right-3 rounded-full flex items-center justify-center text-white font-bold text-sm"
+        className="absolute rounded-full flex items-center justify-center text-white font-bold text-sm"
         style={{
           width: 36,
           height: 36,
-          background: "#7c3aed",
-          border: "2px solid #c4b5fd",
+          top: -8,
+          right: -8,
+          background: "#4da68a",
+          border: "2px solid #a0dbc5",
           boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
           zIndex: 10,
         }}

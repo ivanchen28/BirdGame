@@ -49,12 +49,14 @@ export function BonusDeck({ count, width, height, onDraw }: BonusDeckProps) {
         style={{ boxShadow: "0 0 30px rgba(74, 186, 120, 0.4)" }}
       />
       <div
-        className="absolute -top-3 -right-3 rounded-full flex items-center justify-center text-white font-bold text-sm"
+        className="absolute rounded-full flex items-center justify-center text-white font-bold text-sm"
         style={{
           width: 36,
           height: 36,
-          background: "#0e7490",
-          border: "2px solid #67e8f9",
+          top: -8,
+          right: -8,
+          background: "#486d3a",
+          border: "2px solid #92b36a",
           boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
           zIndex: 10,
         }}
