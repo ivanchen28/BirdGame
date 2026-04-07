@@ -86,6 +86,13 @@ export interface BonusCard {
   rulings: { text: string; source: string }[];
 }
 
+// ── Round End Goals ──
+
+export interface RoundEndGoal {
+  Goal: string;
+  id: number;
+}
+
 // ── Played Bird Cards ──
 
 export interface PlayedBirdCard extends BirdCard {

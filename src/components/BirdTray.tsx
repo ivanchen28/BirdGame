@@ -2,6 +2,7 @@ import { useState } from "react";
 import trayBg from "../../assets/bird-tray-background.png";
 import type { BirdCard } from "../types";
 import { BirdCardDisplay } from "./BirdCardDisplay";
+import { CardListModal } from "./CardListModal";
 
 interface BirdTrayProps {
   cards: (BirdCard | null)[];
@@ -15,6 +16,7 @@ interface BirdTrayProps {
 
 export function BirdTray({ cards, cardWidth, cardHeight, onAddToHand, onDiscard, onRefill, onReset }: BirdTrayProps) {
   const [menuIndex, setMenuIndex] = useState<number | null>(null);
+  const [showModal, setShowModal] = useState(false);
 
   return (
     <div
@@ -124,7 +126,44 @@ export function BirdTray({ cards, cardWidth, cardHeight, onAddToHand, onDiscard,
         >
           Reset
         </button>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowModal(true);
+          }}
+          className="px-1 py-2 rounded text-[0.6rem] font-bold text-white/80 cursor-pointer transition-colors hover:text-white hover:bg-white/15"
+          style={{
+            background: "rgba(0,0,0,0.3)",
+            fontFamily: "CardenioModernBold, sans-serif",
+            writingMode: "vertical-rl",
+          }}
+        >
+          View
+        </button>
       </div>
+
+      {showModal && (
+        <CardListModal
+          title="Bird Tray"
+          cards={cards.filter((c): c is BirdCard => c !== null)}
+          renderCard={(card, h) => <BirdCardDisplay bird={card as BirdCard} cardHeight={h} />}
+          onClose={() => setShowModal(false)}
+          onAddToHand={(cardId) => {
+            const idx = cards.findIndex((c) => c?.id === cardId);
+            if (idx !== -1) {
+              onAddToHand(idx);
+              if (cards.filter((c) => c !== null).length <= 1) setShowModal(false);
+            }
+          }}
+          onDiscard={(cardId) => {
+            const idx = cards.findIndex((c) => c?.id === cardId);
+            if (idx !== -1) {
+              onDiscard(idx);
+              if (cards.filter((c) => c !== null).length <= 1) setShowModal(false);
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

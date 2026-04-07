@@ -1,4 +1,9 @@
+import { ArrowPathIcon } from "@heroicons/react/24/solid";
+import { useCallback, useState } from "react";
+import goalsData from "../../assets/data/goals.json";
 import { iconUrl } from "../icons";
+import type { RoundEndGoal } from "../types";
+import { RoundEndGoalDisplay } from "./RoundEndGoalDisplay";
 
 const ROUNDS = ["Round 1", "Round 2", "Round 3", "Round 4"] as const;
 const PLACEMENTS = ["1st place", "2nd place", "3rd place", ""] as const;
@@ -9,11 +14,33 @@ const POINTS = [
   [7, 4, 3, 0],
 ];
 
-export const EndOfRoundGoalBoard: React.FC = () => {
+const allGoals = goalsData as RoundEndGoal[];
+
+function pickRandomGoals(): RoundEndGoal[] {
+  const shuffled = [...allGoals].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, 4);
+}
+
+export const RoundEndGoalBoard: React.FC = () => {
+  const [goals, setGoals] = useState<RoundEndGoal[]>(pickRandomGoals);
+
+  const reroll = useCallback(() => {
+    setGoals(pickRandomGoals());
+  }, []);
   const boxSize = 48;
 
   return (
-    <div className="bg-white border-2 border-gray-300 rounded-xl flex flex-col items-center justify-start p-2 gap-2 h-fit w-fit">
+    <div className="relative bg-white border-2 border-gray-300 rounded-xl flex flex-col items-center justify-start p-2 gap-2 h-fit w-fit">
+      <button
+        onClick={reroll}
+        className="absolute top-1.5 right-1.5 p-1 rounded-md cursor-pointer transition-colors hover:bg-gray-200"
+        style={{
+          background: "rgba(0,0,0,0.08)",
+          border: "1px solid rgba(0,0,0,0.15)",
+        }}
+      >
+        <ArrowPathIcon className="h-4 w-4 text-gray-500" />
+      </button>
       <h3
         className="text-gray-600 font-bold tracking-wide"
         style={{ fontFamily: "CardenioModernBold, SiliciStrong, sans-serif", fontSize: "1rem" }}
@@ -29,7 +56,14 @@ export const EndOfRoundGoalBoard: React.FC = () => {
             >
               {label}
             </span>
-            <div className="border-2 border-gray-400 bg-gray-50" style={{ width: boxSize + 4, height: boxSize + 4 }} />
+            {goals[colIdx] ? (
+              <RoundEndGoalDisplay goal={goals[colIdx]} size={boxSize} />
+            ) : (
+              <div
+                className="border-2 border-gray-400 bg-gray-50"
+                style={{ width: boxSize + 4, height: boxSize + 4 }}
+              />
+            )}
 
             <span
               className="text-gray-600 text-center leading-tight mt-2"

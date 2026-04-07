@@ -151,7 +151,7 @@ export function BirdFeeder({ size = DEFAULT_FEEDER_SIZE, height }: { size?: numb
         {/* Reroll button */}
         <button
           onClick={reroll}
-          className="absolute bottom-1.5 right-1.5 p-1 rounded-md cursor-pointer transition-colors hover:bg-white/20"
+          className="absolute top-1.5 right-1.5 p-1 rounded-md cursor-pointer transition-colors hover:bg-white/20"
           style={{
             background: "rgba(0,0,0,0.4)",
             border: "1px solid rgba(255,255,255,0.3)",

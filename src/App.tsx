@@ -13,13 +13,13 @@ import { BonusDiscardPile } from "./components/BonusDiscardPile";
 import { CardDock } from "./components/CardDock";
 import { CardListModal } from "./components/CardListModal";
 import { CardWithDiscard } from "./components/CardWithDiscard";
-import { EndOfRoundGoalBoard } from "./components/EndOfRoundGoalBoard";
 import { GameBoard } from "./components/GameBoard";
 import { HummingbirdCardDisplay } from "./components/HummingbirdCardDisplay";
 import { HummingbirdDeck } from "./components/HummingbirdDeck";
 import { HummingbirdDiscardPile } from "./components/HummingbirdDiscardPile";
 import { HummingbirdTrack } from "./components/HummingbirdTrack";
 import { HummingbirdTray } from "./components/HummingbirdTray";
+import { RoundEndGoalBoard } from "./components/RoundEndGoalBoard";
 import { foodUrl, iconUrl } from "./icons";
 import {
   createPlayer,
@@ -642,7 +642,7 @@ function App() {
                   />
                 </div>
               </div>
-              <EndOfRoundGoalBoard />
+              <RoundEndGoalBoard />
             </div>
             <div className="flex items-start gap-3">
               <BirdTray

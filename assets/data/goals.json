@@ -4,7 +4,7 @@
     "id": 3001
   },
   {
-    "Goal": "[egg] in forest",
+    "Goal": "[egg] in [forest]",
     "id": 3002
   },
   {
@@ -12,7 +12,7 @@
     "id": 3003
   },
   {
-    "Goal": "[egg] in grassland",
+    "Goal": "[egg] in [grassland]",
     "id": 3004
   },
   {
@@ -20,7 +20,7 @@
     "id": 3005
   },
   {
-    "Goal": "[egg] in wetland",
+    "Goal": "[egg] in [wetland]",
     "id": 3006
   },
   {
@@ -28,7 +28,7 @@
     "id": 3007
   },
   {
-    "Goal": "[bird] worth >4 [feather]",
+    "Goal": "[bird] worth >4 [point]",
     "id": 3008
   },
   {
@@ -52,7 +52,7 @@
     "id": 3013
   },
   {
-    "Goal": "[bird] in forest",
+    "Goal": "[bird] in [forest]",
     "id": 3014
   },
   {
@@ -60,7 +60,7 @@
     "id": 3015
   },
   {
-    "Goal": "[bird] in grassland",
+    "Goal": "[bird] in [grassland]",
     "id": 3016
   },
   {
@@ -76,135 +76,143 @@
     "id": 3019
   },
   {
-    "Goal": "[goal] [bird] with [platform]",
+    "Goal": "[bird] with [platform]",
     "id": 3020
   },
   {
-    "Goal": "[egg] in [wetland]",
+    "Goal": "[bird] with [bowl]",
     "id": 3021
   },
   {
-    "Goal": "[bird] in wetland",
+    "Goal": "[bird] with [cavity]",
     "id": 3022
   },
   {
-    "Goal": "[platform] [bird] with [egg]",
+    "Goal": "[bird] with [ground]",
     "id": 3023
   },
   {
-    "Goal": "[egg] in [platform]",
+    "Goal": "[egg] in [wetland]",
     "id": 3024
   },
   {
-    "Goal": "[wild] in personal supply",
+    "Goal": "[bird] in [wetland]",
     "id": 3025
   },
   {
-    "Goal": "[card] in hand",
+    "Goal": "[platform] [bird] with [egg]",
     "id": 3026
   },
   {
-    "Goal": "brown powers",
+    "Goal": "[wild] in personal supply",
     "id": 3027
   },
   {
-    "Goal": "white & no powers",
+    "Goal": "[card] in hand",
     "id": 3028
   },
   {
-    "Goal": "filled columns",
+    "Goal": "brown powers",
     "id": 3029
   },
   {
-    "Goal": "[bird] in one row",
+    "Goal": "white & no powers",
     "id": 3030
   },
   {
-    "Goal": "food cost of played [bird]",
+    "Goal": "filled columns",
     "id": 3031
   },
   {
-    "Goal": "[bird_with_tucked_card] birds with tucked cards",
+    "Goal": "[bird] in one row",
     "id": 3032
   },
   {
-    "Goal": "sets of [egg][egg][egg] in [wetland][grassland][forest]",
+    "Goal": "food cost of played [bird]",
     "id": 3033
   },
   {
-    "Goal": "total [bird]",
+    "Goal": "[card] birds with tucked cards",
     "id": 3034
   },
   {
-    "Goal": "[action_cube_gray] cubes on \"play a bird\"",
+    "Goal": "sets of [egg][egg][egg] in [wetland][grassland][forest]",
     "id": 3035
   },
   {
-    "Goal": "[bird] worth ≤3 [feather]",
+    "Goal": "total [bird]",
     "id": 3036
   },
   {
-    "Goal": "[beak_pointing_left] beak pointing left",
+    "Goal": "Action cubes on \"play a bird\"",
     "id": 3037
   },
   {
-    "Goal": "[beak_pointing_right] beak pointing right",
+    "Goal": "[bird] worth ≤3 [point]",
     "id": 3038
   },
   {
-    "Goal": "[fruit] + [seed] in food cost of your birds",
+    "Goal": "[beak_pointing_left] beak pointing left",
     "id": 3039
   },
   {
-    "Goal": "[invertebrate] in food cost of your birds",
+    "Goal": "[beak_pointing_right] beak pointing right",
     "id": 3040
   },
   {
-    "Goal": "[rodent] + [fish] in food cost of your birds",
+    "Goal": "[fruit] + [seed] in food cost of your birds",
     "id": 3041
   },
   {
-    "Goal": "no goal",
+    "Goal": "[invertebrate] in food cost of your birds",
     "id": 3042
   },
   {
-    "Goal": "Birds worth EVEN points (0, 2, 4, 6, 8)",
+    "Goal": "[rodent] + [fish] in food cost of your birds",
     "id": 3043
   },
   {
-    "Goal": "Birds worth ODD points (1, 3, 5, 7, 9)",
+    "Goal": "no goal",
     "id": 3044
   },
   {
-    "Goal": "Total of egg limits",
+    "Goal": "Birds worth EVEN points",
     "id": 3045
   },
   {
-    "Goal": "Hummingbird Points",
+    "Goal": "Birds worth ODD points",
     "id": 3046
   },
   {
-    "Goal": "[mango]",
+    "Goal": "Total of egg limits",
     "id": 3047
   },
   {
-    "Goal": "Different point values on birds",
+    "Goal": "Hummingbird Points",
     "id": 3048
   },
   {
-    "Goal": "[bee]",
+    "Goal": "[mango]",
     "id": 3049
   },
   {
-    "Goal": "[emerald]",
+    "Goal": "Different point values on birds",
     "id": 3050
   },
   {
-    "Goal": "[brilliant]",
+    "Goal": "[bee]",
     "id": 3051
   },
   {
-    "Goal": "[topaz]",
+    "Goal": "[emerald]",
     "id": 3052
+  },
+  {
+    "Goal": "[brilliant]",
+    "id": 3053
+  },
+  {
+    "Goal": "[topaz]",
+    "id": 3054
   }
 ]

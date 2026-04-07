@@ -319,19 +319,22 @@ export function BirdCardDisplay({ bird, cardHeight = CARD_HEIGHT }: BirdCardDisp
       )}
 
       {/* ── Footer ── */}
-      <div className="flex justify-between" style={{ height: "9%", marginTop: "5px" }}>
-        <div style={{ width: "7%" }} />
+      <div className="flex" style={{ height: "9%", marginTop: "5px" }}>
+        <div style={{ width: "7%", flexShrink: 0 }} />
         <div
-          className="italic"
+          className="italic flex-1 min-w-0"
           style={{
             fontFamily: '"Open Sans", sans-serif',
             fontSize: flavorFontSize,
             lineHeight: `${flavorFontSize + 1}px`,
+            marginRight: "4px",
           }}
         >
           <span className="text-start">{bird["Flavor text"]}</span>
         </div>
-        <div />
+        {/* Menu area */}
+        <div className="flex items-center justify-center shrink-0" style={{ width: "10%", height: "100%" }}>
+        </div>
       </div>
     </div>
   );

@@ -8,10 +8,19 @@ interface CardListModalProps {
   renderCard: (card: { id: number }, height: number) => ReactNode;
   onClose: () => void;
   onAddToHand?: (cardId: number) => void;
+  onDiscard?: (cardId: number) => void;
   onShuffle?: () => void;
 }
 
-export function CardListModal({ title, cards, renderCard, onClose, onAddToHand, onShuffle }: CardListModalProps) {
+export function CardListModal({
+  title,
+  cards,
+  renderCard,
+  onClose,
+  onAddToHand,
+  onDiscard,
+  onShuffle,
+}: CardListModalProps) {
   const [selectedId, setSelectedId] = useState<number | null>(null);
 
   return (
@@ -80,28 +89,50 @@ export function CardListModal({ title, cards, renderCard, onClose, onAddToHand, 
               >
                 {renderCard(card, MODAL_CARD_HEIGHT)}
               </div>
-              {selectedId === card.id && onAddToHand && (
+              {selectedId === card.id && (onAddToHand || onDiscard) && (
                 <div
                   className="absolute inset-0 flex items-center justify-center"
                   style={{ background: "rgba(0,0,0,0.5)", borderRadius: 8, zIndex: 20 }}
                   onClick={() => setSelectedId(null)}
                 >
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onAddToHand(card.id);
-                      setSelectedId(null);
-                    }}
-                    className="px-3 py-1.5 rounded-lg text-sm font-bold text-white cursor-pointer"
-                    style={{
-                      background: "#15803d",
-                      border: "2px solid #4ade80",
-                      boxShadow: "0 2px 8px rgba(0,0,0,0.4)",
-                      fontFamily: "CardenioModernBold, sans-serif",
-                    }}
-                  >
-                    Add to Hand
-                  </button>
+                  <div className="flex flex-col gap-2">
+                    {onAddToHand && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onAddToHand(card.id);
+                          setSelectedId(null);
+                        }}
+                        className="px-3 py-1.5 rounded-lg text-sm font-bold text-white cursor-pointer"
+                        style={{
+                          background: "#15803d",
+                          border: "2px solid #4ade80",
+                          boxShadow: "0 2px 8px rgba(0,0,0,0.4)",
+                          fontFamily: "CardenioModernBold, sans-serif",
+                        }}
+                      >
+                        Add to Hand
+                      </button>
+                    )}
+                    {onDiscard && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDiscard(card.id);
+                          setSelectedId(null);
+                        }}
+                        className="px-3 py-1.5 rounded-lg text-sm font-bold text-white cursor-pointer"
+                        style={{
+                          background: "#991b1b",
+                          border: "2px solid #f87171",
+                          boxShadow: "0 2px 8px rgba(0,0,0,0.4)",
+                          fontFamily: "CardenioModernBold, sans-serif",
+                        }}
+                      >
+                        Discard
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
