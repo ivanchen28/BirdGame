@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { foodUrl, iconUrl } from "../icons";
 import type { FoodSupply, FoodType, PlayedBirdCard } from "../types";
 import { BirdCardDisplay } from "./BirdCardDisplay";
@@ -18,6 +18,9 @@ interface PlayedBirdCardDisplayProps {
   onSlotClick?: () => void;
   onRemoveEgg?: () => void;
   onViewTucked?: () => void;
+  onMigrate?: () => void;
+  onReturnToHand?: () => void;
+  onDiscardPlayed?: () => void;
 }
 
 export function PlayedBirdCardDisplay({
@@ -27,10 +30,26 @@ export function PlayedBirdCardDisplay({
   onSlotClick,
   onRemoveEgg,
   onViewTucked,
+  onMigrate,
+  onReturnToHand,
+  onDiscardPlayed,
 }: PlayedBirdCardDisplayProps) {
   const cardWidth = cardHeight * CARD_RATIO;
   const tuckedCount = bird.tuckedCards.length;
   const stackLayers = Math.min(tuckedCount, 3);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handleClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener("click", handleClick);
+    return () => document.removeEventListener("click", handleClick);
+  }, [menuOpen]);
 
   return (
     <div
@@ -142,6 +161,86 @@ export function PlayedBirdCardDisplay({
             </div>
           </div>
         )}
+
+        {/* Bird action menu */}
+        <div ref={menuRef} className="absolute" style={{ bottom: "2%", right: "3%" }}>
+          <button
+            className="flex items-center justify-center rounded-full hover:bg-white/20 transition-colors cursor-pointer"
+            style={{ width: cardHeight * 0.07, height: cardHeight * 0.07 }}
+            onClick={(e) => {
+              e.stopPropagation();
+              setMenuOpen((v) => !v);
+            }}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#888"
+              strokeWidth={1.5}
+              style={{ width: cardHeight * 0.045, height: cardHeight * 0.045 }}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+            </svg>
+          </button>
+          {menuOpen && (
+            <div
+              className="absolute z-50 flex flex-col rounded-lg shadow-lg overflow-hidden"
+              style={{
+                bottom: "110%",
+                right: 0,
+                background: "rgba(0,0,0,0.85)",
+                border: "1px solid rgba(255,255,255,0.3)",
+                minWidth: "max-content",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                className="text-white/90 hover:text-yellow-400 px-3 py-1.5 hover:bg-white/10 transition-colors cursor-pointer whitespace-nowrap text-left"
+                style={{
+                  fontFamily: "CardenioModernBold, SiliciStrong, sans-serif",
+                  fontSize: "0.65rem",
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMenuOpen(false);
+                  onMigrate?.();
+                }}
+              >
+                MIGRATE
+              </button>
+              <div className="h-px bg-white/20" />
+              <button
+                className="text-white/90 hover:text-yellow-400 px-3 py-1.5 hover:bg-white/10 transition-colors cursor-pointer whitespace-nowrap text-left"
+                style={{
+                  fontFamily: "CardenioModernBold, SiliciStrong, sans-serif",
+                  fontSize: "0.65rem",
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMenuOpen(false);
+                  onReturnToHand?.();
+                }}
+              >
+                RETURN TO HAND
+              </button>
+              <div className="h-px bg-white/20" />
+              <button
+                className="text-white/90 hover:text-red-400 px-3 py-1.5 hover:bg-white/10 transition-colors cursor-pointer whitespace-nowrap text-left"
+                style={{
+                  fontFamily: "CardenioModernBold, SiliciStrong, sans-serif",
+                  fontSize: "0.65rem",
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMenuOpen(false);
+                  onDiscardPlayed?.();
+                }}
+              >
+                DISCARD
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {totalCachedFood(bird.cachedFood) > 0 && (

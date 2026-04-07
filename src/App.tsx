@@ -90,6 +90,7 @@ function App() {
   const [layingEggs, setLayingEggs] = useState(false);
   const [cachingFood, setCachingFood] = useState<FoodType | null>(null);
   const [viewingTucked, setViewingTucked] = useState<{ habitat: HabitatType; birdIndex: number } | null>(null);
+  const [migratingBird, setMigratingBird] = useState<{ habitat: HabitatType; birdIndex: number } | null>(null);
 
   const playBirdToHabitat = useCallback(
     (habitat: HabitatType) => {
@@ -235,6 +236,83 @@ function App() {
       if (remaining <= 1) setViewingTucked(null);
     },
     [viewingTucked, player.habitats],
+  );
+
+  // Start migrating a played bird — highlights rightmost empty slots in other habitats
+  const startMigrate = useCallback((habitat: HabitatType, birdIndex: number) => {
+    setMigratingBird({ habitat, birdIndex });
+  }, []);
+
+  // Complete migration: move bird (with tucked cards, cached food, eggs) to rightmost slot of target habitat
+  const completeMigrate = useCallback(
+    (targetHabitat: HabitatType) => {
+      if (!migratingBird) return;
+      const { habitat: srcHabitat, birdIndex } = migratingBird;
+      setPlayer((prev) => {
+        const srcBirds = [...prev.habitats[srcHabitat].birds];
+        const bird = srcBirds[birdIndex];
+        if (!bird) return prev;
+        srcBirds.splice(birdIndex, 1);
+        const destBirds = [...prev.habitats[targetHabitat].birds, bird];
+        return {
+          ...prev,
+          habitats: {
+            ...prev.habitats,
+            [srcHabitat]: { ...prev.habitats[srcHabitat], birds: srcBirds },
+            [targetHabitat]: { ...prev.habitats[targetHabitat], birds: destBirds },
+          },
+        };
+      });
+      setMigratingBird(null);
+    },
+    [migratingBird],
+  );
+
+  // Return a played bird to hand, discarding all resources on it
+  const returnPlayedBirdToHand = useCallback(
+    (habitat: HabitatType, birdIndex: number) => {
+      const bird = player.habitats[habitat].birds[birdIndex];
+      if (!bird) return;
+      const { eggsLaid: _, tuckedCards, cachedFood: __, ...baseBird } = bird;
+      setPlayer((prev) => {
+        const birds = [...prev.habitats[habitat].birds];
+        birds.splice(birdIndex, 1);
+        return {
+          ...prev,
+          birdHand: [...prev.birdHand, baseBird as BirdCard],
+          habitats: {
+            ...prev.habitats,
+            [habitat]: { ...prev.habitats[habitat], birds },
+          },
+        };
+      });
+      if (tuckedCards.length > 0) {
+        setBirdDiscard((prev) => [...prev, ...tuckedCards]);
+      }
+    },
+    [player.habitats],
+  );
+
+  // Discard a played bird and all its resources
+  const discardPlayedBird = useCallback(
+    (habitat: HabitatType, birdIndex: number) => {
+      const bird = player.habitats[habitat].birds[birdIndex];
+      if (!bird) return;
+      const { eggsLaid: _, tuckedCards, cachedFood: __, ...baseBird } = bird;
+      setPlayer((prev) => {
+        const birds = [...prev.habitats[habitat].birds];
+        birds.splice(birdIndex, 1);
+        return {
+          ...prev,
+          habitats: {
+            ...prev.habitats,
+            [habitat]: { ...prev.habitats[habitat], birds },
+          },
+        };
+      });
+      setBirdDiscard((prev) => [...prev, baseBird as BirdCard, ...tuckedCards]);
+    },
+    [player.habitats],
   );
 
   const discardBird = useCallback(
@@ -419,6 +497,7 @@ function App() {
     setTuckingBird(null);
     setLayingEggs(false);
     setCachingFood(null);
+    setMigratingBird(null);
     cancelPlaceHummingbird();
   }, [cancelPlaceHummingbird]);
 
@@ -523,6 +602,11 @@ function App() {
             cachingFood={cachingFood}
             onCacheFood={cacheFoodOnBird}
             onViewTucked={(habitat, birdIndex) => setViewingTucked({ habitat, birdIndex })}
+            migratingBird={migratingBird}
+            onMigrate={startMigrate}
+            onCompleteMigrate={completeMigrate}
+            onReturnToHand={returnPlayedBirdToHand}
+            onDiscardPlayed={discardPlayedBird}
             placingHummingbird={placingHummingbird}
             onPlaceHummingbird={placeHummingbird}
             onDiscardHummingbird={discardHummingbird}

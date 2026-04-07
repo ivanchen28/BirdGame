@@ -333,8 +333,7 @@ export function BirdCardDisplay({ bird, cardHeight = CARD_HEIGHT }: BirdCardDisp
           <span className="text-start">{bird["Flavor text"]}</span>
         </div>
         {/* Menu area */}
-        <div className="flex items-center justify-center shrink-0" style={{ width: "10%", height: "100%" }}>
-        </div>
+        <div className="flex items-center justify-center shrink-0" style={{ width: "10%", height: "100%" }}></div>
       </div>
     </div>
   );

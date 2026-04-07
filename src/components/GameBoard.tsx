@@ -55,7 +55,21 @@ const BirdSlot: React.FC<{
   onSlotClick?: () => void;
   onRemoveEgg?: () => void;
   onViewTucked?: () => void;
-}> = ({ habitat, column, bird, highlighted, onSlotClick, onRemoveEgg, onViewTucked }) => {
+  onMigrate?: () => void;
+  onReturnToHand?: () => void;
+  onDiscardPlayed?: () => void;
+}> = ({
+  habitat,
+  column,
+  bird,
+  highlighted,
+  onSlotClick,
+  onRemoveEgg,
+  onViewTucked,
+  onMigrate,
+  onReturnToHand,
+  onDiscardPlayed,
+}) => {
   const iconCount = COLUMN_ICON_COUNTS[column];
   const icon = HABITAT_ICON[habitat];
   const showReset = (habitat === "forest" || habitat === "wetland") && (column === 1 || column === 3);
@@ -71,6 +85,9 @@ const BirdSlot: React.FC<{
         onSlotClick={onSlotClick}
         onRemoveEgg={onRemoveEgg}
         onViewTucked={onViewTucked}
+        onMigrate={onMigrate}
+        onReturnToHand={onReturnToHand}
+        onDiscardPlayed={onDiscardPlayed}
       />
     );
   }
@@ -218,6 +235,11 @@ interface GameBoardProps {
   cachingFood?: FoodType | null;
   onCacheFood?: (habitat: HabitatType, birdIndex: number) => void;
   onViewTucked?: (habitat: HabitatType, birdIndex: number) => void;
+  onMigrate?: (habitat: HabitatType, birdIndex: number) => void;
+  onReturnToHand?: (habitat: HabitatType, birdIndex: number) => void;
+  onDiscardPlayed?: (habitat: HabitatType, birdIndex: number) => void;
+  migratingBird?: { habitat: HabitatType; birdIndex: number } | null;
+  onCompleteMigrate?: (targetHabitat: HabitatType) => void;
   placingHummingbird?: HummingbirdCard | null;
   onPlaceHummingbird?: (habitat: HabitatType) => void;
   onDiscardHummingbird?: (habitat: HabitatType) => void;
@@ -238,6 +260,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   cachingFood,
   onCacheFood,
   onViewTucked,
+  onMigrate,
+  onReturnToHand,
+  onDiscardPlayed,
+  migratingBird,
+  onCompleteMigrate,
   placingHummingbird,
   onPlaceHummingbird,
   onDiscardHummingbird,
@@ -493,7 +520,19 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                 const highlightForTuck = !!tuckingBird && !!bird;
                 const highlightForEgg = !!layingEggs && !!bird;
                 const highlightForCache = !!cachingFood && !!bird;
-                const highlighted = highlightForPlace || highlightForTuck || highlightForEgg || highlightForCache;
+                const highlightForMigrate =
+                  !!migratingBird &&
+                  migratingBird.habitat !== h &&
+                  isFirstEmpty &&
+                  habitatBirds.length < 5 &&
+                  (() => {
+                    const mb = player.habitats[migratingBird.habitat].birds[migratingBird.birdIndex];
+                    if (!mb) return false;
+                    const key = (h.charAt(0).toUpperCase() + h.slice(1)) as "Forest" | "Grassland" | "Wetland";
+                    return mb[key];
+                  })();
+                const highlighted =
+                  highlightForPlace || highlightForTuck || highlightForEgg || highlightForCache || highlightForMigrate;
                 return (
                   <BirdSlot
                     key={`bird-${row}-${col}`}
@@ -503,24 +542,31 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                     highlighted={highlighted}
                     onRemoveEgg={bird && bird.eggsLaid > 0 ? () => onRemoveEgg?.(h, col) : undefined}
                     onViewTucked={bird && bird.tuckedCards.length > 0 ? () => onViewTucked?.(h, col) : undefined}
+                    onMigrate={bird ? () => onMigrate?.(h, col) : undefined}
+                    onReturnToHand={bird ? () => onReturnToHand?.(h, col) : undefined}
+                    onDiscardPlayed={bird ? () => onDiscardPlayed?.(h, col) : undefined}
                     onSlotClick={
                       highlightForPlace
                         ? () => {
                             onPlaceBird?.(h);
                           }
-                        : highlightForTuck
+                        : highlightForMigrate
                           ? () => {
-                              onTuckBird?.(h, col);
+                              onCompleteMigrate?.(h);
                             }
-                          : highlightForEgg
+                          : highlightForTuck
                             ? () => {
-                                onLayEgg?.(h, col);
+                                onTuckBird?.(h, col);
                               }
-                            : highlightForCache
+                            : highlightForEgg
                               ? () => {
-                                  onCacheFood?.(h, col);
+                                  onLayEgg?.(h, col);
                                 }
-                              : undefined
+                              : highlightForCache
+                                ? () => {
+                                    onCacheFood?.(h, col);
+                                  }
+                                : undefined
                     }
                   />
                 );
