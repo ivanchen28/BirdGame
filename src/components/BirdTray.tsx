@@ -15,7 +15,16 @@ interface BirdTrayProps {
   disabled?: boolean;
 }
 
-export function BirdTray({ cards, cardWidth, cardHeight, onAddToHand, onDiscard, onRefill, onReset, disabled }: BirdTrayProps) {
+export function BirdTray({
+  cards,
+  cardWidth,
+  cardHeight,
+  onAddToHand,
+  onDiscard,
+  onRefill,
+  onReset,
+  disabled,
+}: BirdTrayProps) {
   const [menuIndex, setMenuIndex] = useState<number | null>(null);
   const [showModal, setShowModal] = useState(false);
 
@@ -33,10 +42,14 @@ export function BirdTray({ cards, cardWidth, cardHeight, onAddToHand, onDiscard,
             {card ? (
               <div
                 className={`rounded-lg transition-shadow ${disabled ? "cursor-default" : "cursor-pointer hover:ring-2 hover:ring-yellow-400 hover:shadow-[0_0_12px_rgba(250,204,21,0.6)]"}`}
-                onClick={disabled ? undefined : (e) => {
-                  e.stopPropagation();
-                  setMenuIndex(menuIndex === i ? null : i);
-                }}
+                onClick={
+                  disabled
+                    ? undefined
+                    : (e) => {
+                        e.stopPropagation();
+                        setMenuIndex(menuIndex === i ? null : i);
+                      }
+                }
               >
                 <BirdCardDisplay bird={card} cardHeight={cardHeight} />
               </div>

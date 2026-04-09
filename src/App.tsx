@@ -1077,7 +1077,13 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
                   />
                 </div>
                 <div className="flex items-start gap-4">
-                  <BirdDeck count={deck.length} width={DECK_CARD_WIDTH} height={DECK_CARD_HEIGHT} onDraw={drawCard} disabled={isViewingOther} />
+                  <BirdDeck
+                    count={deck.length}
+                    width={DECK_CARD_WIDTH}
+                    height={DECK_CARD_HEIGHT}
+                    onDraw={drawCard}
+                    disabled={isViewingOther}
+                  />
                   <BirdDiscardPile
                     cards={birdDiscard.map(getBird)}
                     width={DECK_CARD_WIDTH}

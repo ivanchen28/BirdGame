@@ -28,7 +28,12 @@ export function HummingbirdDeck({ count, width, height, onDraw, disabled }: Humm
   }
 
   return (
-    <button onClick={disabled ? undefined : onDraw} disabled={disabled} className={`relative group ${disabled ? "cursor-default" : "cursor-pointer"}`} style={{ width, height }}>
+    <button
+      onClick={disabled ? undefined : onDraw}
+      disabled={disabled}
+      className={`relative group ${disabled ? "cursor-default" : "cursor-pointer"}`}
+      style={{ width, height }}
+    >
       {[3, 2, 1, 0].map((i) => (
         <div
           key={i}

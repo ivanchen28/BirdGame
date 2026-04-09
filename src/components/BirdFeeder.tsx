@@ -57,7 +57,11 @@ function initPositions(w: number, h: number): Map<number, { x: number; y: number
   return map;
 }
 
-export function BirdFeeder({ size = DEFAULT_FEEDER_SIZE, height, disabled }: { size?: number; height?: number; disabled?: boolean } = {}) {
+export function BirdFeeder({
+  size = DEFAULT_FEEDER_SIZE,
+  height,
+  disabled,
+}: { size?: number; height?: number; disabled?: boolean } = {}) {
   const feederHeight = height ?? Math.round(size);
   const feederDice = useStorage((root) => root.feederDice)!;
   const takenDice = useStorage((root) => root.takenDice)!;
@@ -126,7 +130,11 @@ export function BirdFeeder({ size = DEFAULT_FEEDER_SIZE, height, disabled }: { s
       {/* Taken dice */}
       <div className="flex flex-wrap gap-2 justify-center items-center" style={{ maxWidth: size, height: 44 }}>
         {takenDice.map((die, i) => (
-          <div key={`taken-${i}`} className={`relative group ${disabled ? "cursor-default" : "cursor-pointer"}`} onClick={disabled ? undefined : () => rerollTakenDie(die.id)}>
+          <div
+            key={`taken-${i}`}
+            className={`relative group ${disabled ? "cursor-default" : "cursor-pointer"}`}
+            onClick={disabled ? undefined : () => rerollTakenDie(die.id)}
+          >
             <DieDisplay face={die.currentFace} size={TAKEN_DIE_SIZE} />
             <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity">
               <ArrowPathIcon className="h-5 w-5 text-white drop-shadow" />
@@ -153,7 +161,11 @@ export function BirdFeeder({ size = DEFAULT_FEEDER_SIZE, height, disabled }: { s
           const pos = positionsRef.current.get(die.id);
           return (
             <div key={die.id} className="absolute" style={{ left: pos?.x ?? 0, top: pos?.y ?? 0 }}>
-              <DieDisplay face={die.currentFace} size={DIE_SIZE} onClick={disabled ? undefined : () => takeDie(die.id)} />
+              <DieDisplay
+                face={die.currentFace}
+                size={DIE_SIZE}
+                onClick={disabled ? undefined : () => takeDie(die.id)}
+              />
             </div>
           );
         })}
