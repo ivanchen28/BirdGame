@@ -119,7 +119,7 @@ function App() {
   };
 
   return (
-    <RoomProvider id="wingspan-game-v2" initialPresence={initialPresence} initialStorage={createInitialStorage()}>
+    <RoomProvider id="wingspan-game" initialPresence={initialPresence} initialStorage={createInitialStorage()}>
       <GameLoader playerName={playerName} onJoin={handleJoin} />
     </RoomProvider>
   );
