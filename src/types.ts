@@ -180,17 +180,35 @@ export type Die = {
   isNectar: boolean;
 };
 
-const BASE_FACES: DieFace[] = ["invertebrateSeed", "invertebrate", "seed", "fish", "rodent", "fruit"];
-const NECTAR_FACES: DieFace[] = ["invertebrateSeed", "invertebrate", "seedNectar", "fish", "rodent", "fruitNectar"];
+export const BaseFaces: DieFace[] = ["invertebrateSeed", "invertebrate", "seed", "fish", "rodent", "fruit"];
+export const NectarFaces: DieFace[] = [
+  "invertebrateSeed",
+  "invertebrate",
+  "seedNectar",
+  "fish",
+  "rodent",
+  "fruitNectar",
+];
 
 export function createDie(id: number, isNectar: boolean): Die {
-  const possibleFaces = isNectar ? NECTAR_FACES : BASE_FACES;
+  const possibleFaces = isNectar ? NectarFaces : BaseFaces;
   return {
     id,
     possibleFaces,
     currentFace: possibleFaces[Math.floor(Math.random() * possibleFaces.length)],
     isNectar,
   };
+}
+
+/** Creates the standard feeder set: 2 base dice + 3 nectar dice. */
+export function createFeederDice(): Die[] {
+  return [
+    rollDie(createDie(0, false)),
+    rollDie(createDie(1, false)),
+    rollDie(createDie(2, true)),
+    rollDie(createDie(3, true)),
+    rollDie(createDie(4, true)),
+  ];
 }
 
 export function rollDie(die: Die): Die {

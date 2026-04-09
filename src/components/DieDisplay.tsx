@@ -20,12 +20,23 @@ interface DieDisplayProps {
   size?: number;
   onClick?: () => void;
   className?: string;
+  isRolling?: boolean;
+  isNectar?: boolean;
 }
 
-export function DieDisplay({ face, size = 48, onClick, className = "" }: DieDisplayProps) {
+export function DieDisplay({
+  face,
+  size = 48,
+  onClick,
+  className = "",
+  isRolling = false,
+  isNectar = false,
+}: DieDisplayProps) {
   const icons = FACE_ICONS[face];
   const isDual = icons.length > 1;
   const iconSize = isDual ? size * 0.4 : size * 0.65;
+
+  const borderColor = isNectar ? "#e8a0b0" : "#c4b9ad";
 
   return (
     <div
@@ -36,10 +47,11 @@ export function DieDisplay({ face, size = 48, onClick, className = "" }: DieDisp
         height: size,
         borderRadius: size * 0.18,
         background: "#f5f0eb",
-        border: "1.5px solid #c4b9ad",
+        border: `1.5px solid ${borderColor}`,
         boxShadow: "0 2px 6px rgba(0,0,0,0.25)",
-        transition: "transform 0.1s",
+        transition: isRolling ? "none" : "transform 0.1s",
         overflow: "hidden",
+        animation: isRolling ? "die-roll 0.45s ease-in-out" : "none",
       }}
     >
       {isDual ? (
@@ -65,7 +77,7 @@ export function DieDisplay({ face, size = 48, onClick, className = "" }: DieDisp
               y1={size * 0.85}
               x2={size * 0.85}
               y2={size * 0.15}
-              stroke="#c4b9ad"
+              stroke={borderColor}
               strokeWidth={1.5}
             />
           </svg>

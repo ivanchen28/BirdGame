@@ -33,8 +33,7 @@ import { RoundEndGoalBoard } from "./components/RoundEndGoalBoard";
 import { foodUrl, iconUrl } from "./icons";
 import { initialPresence, RoomProvider, useMutation, useStorage } from "./liveblocks.config";
 import {
-  createDie,
-  rollDie,
+  createFeederDice,
   toPlayedBirdState,
   type BirdCard,
   type BonusCard,
@@ -53,6 +52,15 @@ const FOOD_DISPLAY_NAMES: Record<FoodType, string> = {
   fish: "FISH",
   rodent: "RAT",
   nectar: "NECTAR",
+};
+
+const FOOD_BORDER_COLORS: Record<FoodType, string> = {
+  invertebrate: "#005f53",
+  seed: "#c5712a",
+  fruit: "#882036",
+  fish: "#0078a2",
+  rodent: "#776559",
+  nectar: "#f84b9c",
 };
 
 function shuffle<T>(arr: T[]): T[] {
@@ -77,14 +85,12 @@ const HUMMINGBIRD_SCALE = 44 / 57;
 const DECK_HUMMINGBIRD_HEIGHT = DECK_CARD_HEIGHT * HUMMINGBIRD_SCALE;
 const DECK_HUMMINGBIRD_WIDTH = DECK_HUMMINGBIRD_HEIGHT * 0.655;
 
-const DICE_COUNT = 5;
-
 function createInitialStorage() {
   const shuffledBirds = shuffle(allBirdIds);
   const shuffledBonus = shuffle(allBonusIds);
   const shuffledHummingbirds = shuffle(allHummingbirdIds);
   const shuffledGoals = shuffle(allGoalIds);
-  const initialDice = Array.from({ length: DICE_COUNT }, (_, i) => rollDie(createDie(i, false)));
+  const initialDice = createFeederDice();
 
   return {
     gamePhase: "lobby" as const,
@@ -1004,7 +1010,7 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
                       width: 50,
                       height: 50,
                       background: "rgba(0,0,0,0.35)",
-                      border: "2px solid rgba(255,255,255,0.6)",
+                      border: `2px solid ${FOOD_BORDER_COLORS[food]}`,
                     }}
                   >
                     <img src={foodUrl(food)} alt={food} className="h-8 drop-shadow" />

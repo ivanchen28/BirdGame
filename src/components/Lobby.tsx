@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { allBirdIds, allBonusIds, allGoalIds, allHummingbirdIds } from "../cardLookup";
 import { useMutation, useOthers, useStorage, useUpdateMyPresence, type Presence } from "../liveblocks.config";
-import { createDie, createPlayer, rollDie, type Player } from "../types";
+import { createFeederDice, createPlayer, type Player } from "../types";
 
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -76,7 +76,7 @@ export function Lobby({
     const shuffledBonus = shuffle(allBonusIds);
     const shuffledHummingbirds = shuffle(allHummingbirdIds);
     const shuffledGoals = shuffle(allGoalIds);
-    const initialDice = Array.from({ length: 5 }, (_, i) => rollDie(createDie(i, false)));
+    const initialDice = createFeederDice();
     storage.set("birdDeck", shuffledBirds.slice(3));
     storage.set("birdTray", shuffledBirds.slice(0, 3));
     storage.set("bonusDeck", shuffledBonus);
@@ -103,7 +103,7 @@ export function Lobby({
     const shuffledBonus = shuffle(allBonusIds);
     const shuffledHummingbirds = shuffle(allHummingbirdIds);
     const shuffledGoals = shuffle(allGoalIds);
-    const initialDice = Array.from({ length: 5 }, (_, i) => rollDie(createDie(i, false)));
+    const initialDice = createFeederDice();
     storage.set("gamePhase", "lobby");
     storage.set("birdDeck", shuffledBirds.slice(3));
     storage.set("birdTray", shuffledBirds.slice(0, 3));
