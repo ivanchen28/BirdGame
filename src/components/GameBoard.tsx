@@ -10,6 +10,7 @@ import {
   type PlayedBirdCard,
   type Player,
 } from "../types";
+import { ActionCube } from "./ActionCube";
 import { CardWithDiscard } from "./CardWithDiscard";
 import { HummingbirdCardDisplay } from "./HummingbirdCardDisplay";
 import { PersonalSupplyDisplay } from "./PersonalSupplyDisplay";
@@ -58,6 +59,8 @@ const BirdSlot: React.FC<{
   onMigrate?: () => void;
   onReturnToHand?: () => void;
   onDiscardPlayed?: () => void;
+  actionCube?: { color: string };
+  onCubeClick?: (e: React.MouseEvent) => void;
 }> = ({
   habitat,
   column,
@@ -69,6 +72,8 @@ const BirdSlot: React.FC<{
   onMigrate,
   onReturnToHand,
   onDiscardPlayed,
+  actionCube,
+  onCubeClick,
 }) => {
   const iconCount = COLUMN_ICON_COUNTS[column];
   const icon = HABITAT_ICON[habitat];
@@ -76,19 +81,35 @@ const BirdSlot: React.FC<{
   const showTrade = column === 0 || column === 2 || column === 3 || column === 4;
   const tradeCount = habitat === "grassland" && column === 3 ? 2 : 1;
 
+  const cubeOverlay = actionCube && (
+    <div
+      className="absolute top-1 right-1 cursor-pointer"
+      style={{ zIndex: 50 }}
+      onClick={(e) => {
+        e.stopPropagation();
+        onCubeClick?.(e);
+      }}
+    >
+      <ActionCube color={actionCube.color} size={48} />
+    </div>
+  );
+
   if (bird) {
     return (
-      <PlayedBirdCardDisplay
-        bird={bird}
-        cardHeight={225.5}
-        highlighted={highlighted}
-        onSlotClick={onSlotClick}
-        onRemoveEgg={onRemoveEgg}
-        onViewTucked={onViewTucked}
-        onMigrate={onMigrate}
-        onReturnToHand={onReturnToHand}
-        onDiscardPlayed={onDiscardPlayed}
-      />
+      <div className="relative">
+        <PlayedBirdCardDisplay
+          bird={bird}
+          cardHeight={225.5}
+          highlighted={highlighted}
+          onSlotClick={onSlotClick}
+          onRemoveEgg={onRemoveEgg}
+          onViewTucked={onViewTucked}
+          onMigrate={onMigrate}
+          onReturnToHand={onReturnToHand}
+          onDiscardPlayed={onDiscardPlayed}
+        />
+        {cubeOverlay}
+      </div>
     );
   }
 
@@ -150,6 +171,7 @@ const BirdSlot: React.FC<{
           ))}
         </div>
       </div>
+      {cubeOverlay}
       {showTrade && (
         <>
           <div className="absolute inset-x-4" style={{ top: "70%" }}>
@@ -246,6 +268,11 @@ interface GameBoardProps {
   onNectarChange?: (habitat: HabitatType, delta: number) => void;
   onUseFood: (food: FoodType) => void;
   onStartCache: (food: FoodType) => void;
+  placingCube?: boolean;
+  onPlaceCubeToggle?: () => void;
+  onPlaceCube?: (habitat: HabitatType | "playABird") => void;
+  onCubeClick?: (habitat: HabitatType, e: React.MouseEvent) => void;
+  onReturnUsedCube?: (habitat: HabitatType | "playABird") => void;
 }
 
 export const GameBoard: React.FC<GameBoardProps> = ({
@@ -271,6 +298,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   onNectarChange,
   onUseFood,
   onStartCache,
+  placingCube,
+  onPlaceCubeToggle,
+  onPlaceCube,
+  onCubeClick,
+  onReturnUsedCube,
 }) => {
   // Compute which habitats have a valid empty slot for the bird being placed
   const highlightedHabitats = new Set<HabitatType>();
@@ -297,7 +329,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         >
           {player.name}
         </span>
-        <PersonalSupplyDisplay player={player} onUseFood={onUseFood} onStartCache={onStartCache} />
+        <PersonalSupplyDisplay
+          player={player}
+          onUseFood={onUseFood}
+          onStartCache={onStartCache}
+          placingCube={placingCube}
+          onPlaceCubeToggle={onPlaceCubeToggle}
+        />
       </div>
       <div
         className="relative rounded-xl overflow-hidden shadow-lg"
@@ -327,12 +365,22 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             >
               PLAY A BIRD
             </span>
-            <div className="flex items-center gap-1">
-              <img src={foodUrl("wild-glow")} alt="wild" className="h-4 drop-shadow" />
-              <img src={foodUrl("wild-glow")} alt="wild" className="h-4 drop-shadow" />
-              <RightArrow className="h-3 w-3 text-white drop-shadow" />
-              <img src={foodUrl("wild-glow")} alt="wild" className="h-4 drop-shadow" />
-            </div>
+            {player.playABirdCubes > 0 && (
+              <div className="flex items-center gap-1">
+                {Array.from({ length: player.playABirdCubes }, (_, i) => (
+                  <button
+                    key={i}
+                    className="cursor-pointer hover:brightness-125 transition-all"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onReturnUsedCube?.("playABird");
+                    }}
+                  >
+                    <ActionCube color={player.cubeColor} size={20} />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           {EGG_COSTS.slice(1).map((count, col) =>
             count > 0 ? (
@@ -361,7 +409,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                   style={{ transform: "translateY(-50%)" }}
                 />
                 {/* Habitat info */}
-                <div className="flex flex-col items-center pt-2 gap-1 px-2">
+                <div
+                  className="flex flex-col items-center pt-2 gap-1 px-2 overflow-visible"
+                  style={{ width: "6.5rem", minWidth: "6.5rem" }}
+                >
                   <img
                     src={habitatUrl(`${HabitatTypes[row]}-glow`)}
                     alt={HabitatTypes[row]}
@@ -445,6 +496,26 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                       BROWN POWERS
                     </span>
                   </div>
+                  {/* Used action cubes */}
+                  {player.habitats[HabitatTypes[row]].actionCubes > 0 && (
+                    <div
+                      className="flex items-center gap-1 self-start pl-1"
+                      style={{ position: "relative", zIndex: 5 }}
+                    >
+                      {Array.from({ length: player.habitats[HabitatTypes[row]].actionCubes }, (_, i) => (
+                        <button
+                          key={i}
+                          className="cursor-pointer hover:brightness-125 transition-all"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onReturnUsedCube?.(HabitatTypes[row]);
+                          }}
+                        >
+                          <ActionCube color={player.cubeColor} size={24} />
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 {/* Hummingbird slot */}
                 <div
@@ -533,6 +604,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                   })();
                 const highlighted =
                   highlightForPlace || highlightForTuck || highlightForEgg || highlightForCache || highlightForMigrate;
+                // Show action cube on the slot indicated by activeCube (1-5 for bird slots)
+                const activeCubeSlot = player.habitats[h].activeCube;
+                const showCube = activeCubeSlot !== undefined && activeCubeSlot === col + 1;
                 return (
                   <BirdSlot
                     key={`bird-${row}-${col}`}
@@ -540,6 +614,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                     column={col}
                     bird={bird}
                     highlighted={highlighted}
+                    actionCube={showCube ? { color: player.cubeColor } : undefined}
+                    onCubeClick={showCube ? (e) => onCubeClick?.(h, e) : undefined}
                     onRemoveEgg={bird && bird.eggsLaid > 0 ? () => onRemoveEgg?.(h, col) : undefined}
                     onViewTucked={bird && bird.tuckedCards.length > 0 ? () => onViewTucked?.(h, col) : undefined}
                     onMigrate={bird ? () => onMigrate?.(h, col) : undefined}
@@ -572,7 +648,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                 );
               })}
               {/* Row-end icons */}
-              <div className="flex flex-col items-center justify-center gap-1">
+              <div className="relative flex flex-col items-center justify-center gap-1">
                 {Array.from({ length: 4 }, (_, i) => {
                   const icon = ROW_END_ICONS[row];
                   if (icon.type === "die") {
@@ -591,9 +667,65 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                     />
                   );
                 })}
+                {(() => {
+                  const h = HabitatTypes[row];
+                  const habitatData = player.habitats[h];
+                  if (habitatData.activeCube === 6) {
+                    return (
+                      <div
+                        className="absolute top-2 left-1/2 -translate-x-1/2 cursor-pointer"
+                        style={{ zIndex: 50 }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onCubeClick?.(h, e);
+                        }}
+                      >
+                        <ActionCube color={player.cubeColor} size={28} />
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
             </>
           ))}
+          {/* Action cube placement overlays — highlight entire habitat row */}
+          {placingCube && (
+            <>
+              {/* Play a Bird header overlay */}
+              <div
+                className="absolute rounded-lg border-2 border-yellow-400 shadow-[0_0_12px_rgba(250,204,21,0.6)] bg-yellow-400/10 cursor-pointer transition-colors hover:bg-yellow-400/20"
+                style={{
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: "4%",
+                  zIndex: 20,
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onPlaceCube?.("playABird");
+                }}
+              />
+              {HabitatTypes.map((h, row) => (
+                <div
+                  key={`cube-overlay-${h}`}
+                  className="absolute rounded-lg border-2 border-yellow-400 shadow-[0_0_12px_rgba(250,204,21,0.6)] bg-yellow-400/10 cursor-pointer transition-colors hover:bg-yellow-400/20"
+                  style={{
+                    top: `calc(4% + ${row} * 31.5%)`,
+                    left: 0,
+                    right: 0,
+                    height: "31.5%",
+                    zIndex: 20,
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onPlaceCube?.(h);
+                  }}
+                />
+              ))}
+            </>
+          )}
         </div>
       </div>
     </div>

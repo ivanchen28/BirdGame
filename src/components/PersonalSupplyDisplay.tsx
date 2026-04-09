@@ -1,15 +1,23 @@
-import { CubeIcon } from "@heroicons/react/24/solid";
 import { useEffect, useRef, useState } from "react";
 import { foodUrl } from "../icons";
 import { FoodTypes, type FoodType, type Player } from "../types";
+import { ActionCube } from "./ActionCube";
 
 interface PersonalSupplyProps {
   player: Player;
   onUseFood: (food: FoodType) => void;
   onStartCache: (food: FoodType) => void;
+  placingCube?: boolean;
+  onPlaceCubeToggle?: () => void;
 }
 
-export const PersonalSupplyDisplay: React.FC<PersonalSupplyProps> = ({ player, onUseFood, onStartCache }) => {
+export const PersonalSupplyDisplay: React.FC<PersonalSupplyProps> = ({
+  player,
+  onUseFood,
+  onStartCache,
+  placingCube,
+  onPlaceCubeToggle,
+}) => {
   const [foodActionMenu, setFoodActionMenu] = useState<FoodType | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -31,8 +39,18 @@ export const PersonalSupplyDisplay: React.FC<PersonalSupplyProps> = ({ player, o
       style={{ background: "rgba(0,0,0,0.35)", border: "2px solid rgba(255,255,255,0.3)" }}
     >
       {/* Action cubes */}
-      <div className="flex items-center gap-1">
-        <CubeIcon className="h-5 w-5 drop-shadow" style={{ color: player.cubeColor }} />
+      <button
+        className={`flex items-center gap-1 rounded px-1 py-0.5 transition-colors cursor-pointer ${
+          placingCube
+            ? "ring-2 ring-yellow-400 shadow-[0_0_12px_rgba(250,204,21,0.6)] bg-white/20"
+            : "hover:bg-white/10"
+        }`}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (player.actionCubes > 0) onPlaceCubeToggle?.();
+        }}
+      >
+        <ActionCube color={player.cubeColor} size={20} />
         <span
           className="text-white font-bold drop-shadow"
           style={{
@@ -42,7 +60,7 @@ export const PersonalSupplyDisplay: React.FC<PersonalSupplyProps> = ({ player, o
         >
           {player.actionCubes}
         </span>
-      </div>
+      </button>
 
       <div className="w-px h-5 bg-white/20" />
 

@@ -93,6 +93,25 @@ export interface RoundEndGoal {
   id: number;
 }
 
+/** A single placement spot on the round end goal board. Tracks which player colors have cubes here. */
+export interface RoundEndSpot {
+  cubeColors: string[];
+}
+
+/** State for the entire round end goal board: 4 rounds × 4 placement spots, plus the goals. */
+export interface RoundEndGoalBoardState {
+  goals: RoundEndGoal[];
+  /** spots[round][placement] — round 0-3, placement 0-3 (1st, 2nd, 3rd, 0pt) */
+  spots: RoundEndSpot[][];
+}
+
+export function createRoundEndGoalBoardState(goals: RoundEndGoal[]): RoundEndGoalBoardState {
+  return {
+    goals,
+    spots: Array.from({ length: 4 }, () => Array.from({ length: 4 }, () => ({ cubeColors: [] }))),
+  };
+}
+
 // ── Played Bird Cards ──
 
 export interface PlayedBirdCard extends BirdCard {
@@ -183,6 +202,7 @@ export interface Player {
   name: string;
   cubeColor: string;
   actionCubes: number;
+  playABirdCubes: number;
   birdHand: BirdCard[];
   bonusHand: BonusCard[];
   food: FoodSupply;
@@ -196,6 +216,7 @@ export function createPlayer(name: string, cubeColor: string): Player {
     name,
     cubeColor,
     actionCubes: 8,
+    playABirdCubes: 0,
     birdHand: [],
     bonusHand: [],
     food: { invertebrate: 0, seed: 0, fish: 0, fruit: 0, rodent: 0, nectar: 0 },

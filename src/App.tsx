@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import birdsData from "../assets/data/birds.json";
 import bonusData from "../assets/data/bonus.json";
+import goalsData from "../assets/data/goals.json";
 import hummingbirdsData from "../assets/data/hummingbirds.json";
 import { BirdCardDisplay } from "./components/BirdCardDisplay";
 import { BirdDeck } from "./components/BirdDeck";
@@ -23,6 +24,7 @@ import { RoundEndGoalBoard } from "./components/RoundEndGoalBoard";
 import { foodUrl, iconUrl } from "./icons";
 import {
   createPlayer,
+  createRoundEndGoalBoardState,
   toPlayedBird,
   type BirdCard,
   type BonusCard,
@@ -31,6 +33,8 @@ import {
   type HummingbirdCard,
   type HummingbirdGroup,
   type Player,
+  type RoundEndGoal,
+  type RoundEndGoalBoardState,
 } from "./types";
 
 const FOOD_DISPLAY_NAMES: Record<FoodType, string> = {
@@ -45,6 +49,7 @@ const FOOD_DISPLAY_NAMES: Record<FoodType, string> = {
 const allBirds: BirdCard[] = birdsData as BirdCard[];
 const allBonuses: BonusCard[] = bonusData as BonusCard[];
 const allHummingbirds: HummingbirdCard[] = hummingbirdsData as HummingbirdCard[];
+const allGoals: RoundEndGoal[] = goalsData as RoundEndGoal[];
 
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -91,6 +96,11 @@ function App() {
   const [cachingFood, setCachingFood] = useState<FoodType | null>(null);
   const [viewingTucked, setViewingTucked] = useState<{ habitat: HabitatType; birdIndex: number } | null>(null);
   const [migratingBird, setMigratingBird] = useState<{ habitat: HabitatType; birdIndex: number } | null>(null);
+  const [placingCube, setPlacingCube] = useState(false);
+  const [roundEndBoard, setRoundEndBoard] = useState<RoundEndGoalBoardState>(() => {
+    const shuffled = shuffle(allGoals);
+    return createRoundEndGoalBoardState(shuffled.slice(0, 4));
+  });
 
   const playBirdToHabitat = useCallback(
     (habitat: HabitatType) => {
@@ -267,6 +277,83 @@ function App() {
     },
     [migratingBird],
   );
+
+  const placeActionCube = useCallback((habitat: HabitatType | "playABird") => {
+    setPlayer((prev) => {
+      if (prev.actionCubes <= 0) return prev;
+      if (habitat === "playABird") {
+        return {
+          ...prev,
+          actionCubes: prev.actionCubes - 1,
+          playABirdCubes: prev.playABirdCubes + 1,
+        };
+      }
+      if (prev.habitats[habitat].activeCube !== undefined) return prev;
+      const birdCount = prev.habitats[habitat].birds.length;
+      const slot = birdCount < 5 ? birdCount + 1 : 6;
+      return {
+        ...prev,
+        actionCubes: prev.actionCubes - 1,
+        habitats: {
+          ...prev.habitats,
+          [habitat]: {
+            ...prev.habitats[habitat],
+            activeCube: slot,
+          },
+        },
+      };
+    });
+    setPlacingCube(false);
+  }, []);
+
+  const handleCubeClick = useCallback((habitat: HabitatType, e: React.MouseEvent) => {
+    setPlayer((prev) => {
+      const current = prev.habitats[habitat].activeCube;
+      if (current === undefined) return prev;
+      if (e.shiftKey) {
+        // Shift-click: move right, or return to supply from end column
+        if (current >= 6) {
+          return {
+            ...prev,
+            actionCubes: prev.actionCubes + 1,
+            habitats: {
+              ...prev.habitats,
+              [habitat]: { ...prev.habitats[habitat], activeCube: undefined },
+            },
+          };
+        }
+        return {
+          ...prev,
+          habitats: {
+            ...prev.habitats,
+            [habitat]: { ...prev.habitats[habitat], activeCube: current + 1 },
+          },
+        };
+      } else {
+        // Click: move left, or add to habitat's used cubes from slot 1
+        if (current <= 1) {
+          return {
+            ...prev,
+            habitats: {
+              ...prev.habitats,
+              [habitat]: {
+                ...prev.habitats[habitat],
+                activeCube: undefined,
+                actionCubes: prev.habitats[habitat].actionCubes + 1,
+              },
+            },
+          };
+        }
+        return {
+          ...prev,
+          habitats: {
+            ...prev.habitats,
+            [habitat]: { ...prev.habitats[habitat], activeCube: current - 1 },
+          },
+        };
+      }
+    });
+  }, []);
 
   // Return a played bird to hand, discarding all resources on it
   const returnPlayedBirdToHand = useCallback(
@@ -498,6 +585,7 @@ function App() {
     setLayingEggs(false);
     setCachingFood(null);
     setMigratingBird(null);
+    setPlacingCube(false);
     cancelPlaceHummingbird();
   }, [cancelPlaceHummingbird]);
 
@@ -626,6 +714,35 @@ function App() {
             }}
             onUseFood={removeFood}
             onStartCache={(food) => setCachingFood(food)}
+            placingCube={placingCube}
+            onPlaceCubeToggle={() => setPlacingCube((prev) => !prev)}
+            onPlaceCube={placeActionCube}
+            onCubeClick={handleCubeClick}
+            onReturnUsedCube={(habitat) => {
+              if (habitat === "playABird") {
+                setPlayer((prev) => {
+                  if (prev.playABirdCubes <= 0) return prev;
+                  return {
+                    ...prev,
+                    actionCubes: prev.actionCubes + 1,
+                    playABirdCubes: prev.playABirdCubes - 1,
+                  };
+                });
+                return;
+              }
+              setPlayer((prev) => {
+                const h = prev.habitats[habitat];
+                if (h.actionCubes <= 0) return prev;
+                return {
+                  ...prev,
+                  actionCubes: prev.actionCubes + 1,
+                  habitats: {
+                    ...prev.habitats,
+                    [habitat]: { ...h, actionCubes: h.actionCubes - 1 },
+                  },
+                };
+              });
+            }}
           />
 
           {/* Bird feeder + Food piles + Eggs + Hummingbird track */}
@@ -726,7 +843,38 @@ function App() {
                   />
                 </div>
               </div>
-              <RoundEndGoalBoard />
+              <RoundEndGoalBoard
+                state={roundEndBoard}
+                onReroll={() => {
+                  const shuffled = shuffle(allGoals);
+                  setRoundEndBoard(createRoundEndGoalBoardState(shuffled.slice(0, 4)));
+                }}
+                placingCube={placingCube}
+                onPlaceCube={(round, placement) => {
+                  setPlayer((prev) => {
+                    if (prev.actionCubes <= 0) return prev;
+                    return { ...prev, actionCubes: prev.actionCubes - 1 };
+                  });
+                  setRoundEndBoard((prev) => {
+                    const spots = prev.spots.map((r) => r.map((s) => ({ ...s, cubeColors: [...s.cubeColors] })));
+                    spots[round][placement].cubeColors.push(player.cubeColor);
+                    return { ...prev, spots };
+                  });
+                  setPlacingCube(false);
+                }}
+                onRemoveCube={(round, placement, cubeIndex) => {
+                  const color = roundEndBoard.spots[round]?.[placement]?.cubeColors[cubeIndex];
+                  if (!color) return;
+                  if (color === player.cubeColor) {
+                    setPlayer((prev) => ({ ...prev, actionCubes: prev.actionCubes + 1 }));
+                  }
+                  setRoundEndBoard((prev) => {
+                    const spots = prev.spots.map((r) => r.map((s) => ({ ...s, cubeColors: [...s.cubeColors] })));
+                    spots[round][placement].cubeColors.splice(cubeIndex, 1);
+                    return { ...prev, spots };
+                  });
+                }}
+              />
             </div>
             <div className="flex items-start gap-3">
               <BirdTray
