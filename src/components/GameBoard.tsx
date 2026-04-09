@@ -4,7 +4,6 @@ import { getBird, getHummingbird, resolvePlayedBird } from "../cardLookup";
 import { foodUrl, habitatUrl, hummingbirdUrl, iconUrl, powerBgUrl } from "../icons";
 import { HabitatTypes, type FoodType, type HabitatType, type PlayedBirdCard, type Player } from "../types";
 import { ActionCube } from "./ActionCube";
-import { CardWithDiscard } from "./CardWithDiscard";
 import { HummingbirdCardDisplay } from "./HummingbirdCardDisplay";
 import { PersonalSupplyDisplay } from "./PersonalSupplyDisplay";
 import { PlayedBirdCardDisplay } from "./PlayedBirdCardDisplay";
@@ -258,7 +257,8 @@ interface GameBoardProps {
   onCompleteMigrate?: (targetHabitat: HabitatType) => void;
   placingHummingbird?: number | null;
   onPlaceHummingbird?: (habitat: HabitatType) => void;
-  onDiscardHummingbird?: (habitat: HabitatType) => void;
+  onReturnHummingbird?: (habitat: HabitatType) => void;
+  returningHummingbird?: HabitatType | null;
   onNectarChange?: (habitat: HabitatType, delta: number) => void;
   onUseFood: (food: FoodType) => void;
   onStartCache: (food: FoodType) => void;
@@ -289,7 +289,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   onCompleteMigrate,
   placingHummingbird,
   onPlaceHummingbird,
-  onDiscardHummingbird,
+  onReturnHummingbird,
+  returningHummingbird,
   onNectarChange,
   onUseFood,
   onStartCache,
@@ -526,15 +527,40 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                     if (hbId != null) {
                       const hbCard = getHummingbird(hbId);
                       const slotHeight = 720 * 0.315 * HUMMINGBIRD_SCALE;
-                      const slotWidth = slotHeight * CARD_RATIO;
+                      const isReturning = returningHummingbird === h;
                       return (
-                        <CardWithDiscard
-                          width={slotWidth}
-                          height={slotHeight}
-                          onDiscard={() => onDiscardHummingbird?.(h)}
+                        <div
+                          className={`relative rounded-lg transition-shadow ${
+                            isReturning
+                              ? ""
+                              : onReturnHummingbird
+                                ? "cursor-pointer hover:ring-2 hover:ring-yellow-400 hover:shadow-[0_0_12px_rgba(250,204,21,0.6)]"
+                                : ""
+                          }`}
+                          onClick={
+                            onReturnHummingbird
+                              ? (e) => {
+                                  e.stopPropagation();
+                                  onReturnHummingbird(h);
+                                }
+                              : undefined
+                          }
                         >
                           <HummingbirdCardDisplay card={hbCard} cardHeight={slotHeight} />
-                        </CardWithDiscard>
+                          {isReturning && (
+                            <div
+                              className="absolute inset-0 flex flex-col items-center justify-center rounded-lg ring-2 ring-yellow-400 shadow-[0_0_12px_rgba(250,204,21,0.6)]"
+                              style={{ background: "rgba(0,0,0,0.4)", zIndex: 10 }}
+                            >
+                              <span
+                                className="text-white font-bold text-xs"
+                                style={{ fontFamily: "CardenioModernBold, sans-serif" }}
+                              >
+                                Returning…
+                              </span>
+                            </div>
+                          )}
+                        </div>
                       );
                     }
 

@@ -21,7 +21,7 @@ type Storage = {
   birdDiscard: number[];
   bonusDiscard: number[];
   hummingbirdDeck: number[];
-  hummingbirdTray: (number | null)[];
+  hummingbirdTray: number[][];
   hummingbirdDiscard: number[];
   roundEndGoalIds: number[];
   roundEndSpots: RoundEndSpot[][];

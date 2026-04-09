@@ -5,23 +5,27 @@ import { CardListModal } from "./CardListModal";
 import { HummingbirdCardDisplay } from "./HummingbirdCardDisplay";
 
 interface HummingbirdTrayProps {
-  cards: (HummingbirdCard | null)[];
+  slots: HummingbirdCard[][];
   cardWidth: number;
   cardHeight: number;
   onSelect: (index: number) => void;
   onRefill: () => void;
   onReset: () => void;
   disabled?: boolean;
+  returningHummingbird?: boolean;
+  onReturnToSlot?: (index: number) => void;
 }
 
 export function HummingbirdTray({
-  cards,
+  slots,
   cardWidth,
   cardHeight,
   onSelect,
   onRefill,
   onReset,
   disabled,
+  returningHummingbird,
+  onReturnToSlot,
 }: HummingbirdTrayProps) {
   const [showModal, setShowModal] = useState(false);
 
@@ -34,32 +38,76 @@ export function HummingbirdTray({
       }}
     >
       <div className="flex items-start gap-2">
-        {cards.map((card, i) => (
-          <div key={card?.id ?? `empty-${i}`} className="relative">
-            {card ? (
-              <div
-                className={`rounded-lg transition-shadow ${disabled ? "cursor-default" : "cursor-pointer hover:ring-2 hover:ring-yellow-400 hover:shadow-[0_0_12px_rgba(250,204,21,0.6)]"}`}
-                onClick={
-                  disabled
-                    ? undefined
-                    : (e) => {
-                        e.stopPropagation();
-                        onSelect(i);
-                      }
-                }
-              >
-                <HummingbirdCardDisplay card={card} cardHeight={cardHeight} />
-              </div>
-            ) : (
-              <div
-                className="rounded-lg border-2 border-dashed border-white/30 flex items-center justify-center"
-                style={{ width: cardWidth, height: cardHeight }}
-              >
-                <span className="text-white/30 text-xs">Empty</span>
-              </div>
-            )}
-          </div>
-        ))}
+        {slots.map((slot, i) => {
+          const topCard = slot.length > 0 ? slot[slot.length - 1] : null;
+          const stackCount = slot.length;
+          const isHighlighted = !!returningHummingbird;
+
+          return (
+            <div key={topCard?.id ?? `empty-${i}`} className="relative">
+              {topCard ? (
+                <div className="relative">
+                  <div
+                    className={`relative rounded-lg transition-shadow ${
+                      isHighlighted
+                        ? "ring-2 ring-yellow-400 shadow-[0_0_12px_rgba(250,204,21,0.6)] cursor-pointer"
+                        : disabled
+                          ? "cursor-default"
+                          : "cursor-pointer hover:ring-2 hover:ring-yellow-400 hover:shadow-[0_0_12px_rgba(250,204,21,0.6)]"
+                    }`}
+                    style={{ zIndex: stackCount }}
+                    onClick={
+                      isHighlighted
+                        ? (e) => {
+                            e.stopPropagation();
+                            onReturnToSlot?.(i);
+                          }
+                        : disabled
+                          ? undefined
+                          : (e) => {
+                              e.stopPropagation();
+                              onSelect(i);
+                            }
+                    }
+                  >
+                    <HummingbirdCardDisplay card={topCard} cardHeight={cardHeight} />
+                  </div>
+                  {stackCount > 1 && (
+                    <div
+                      className="absolute bg-black/50 text-white text-xs font-bold rounded-full w-4 h-4 flex items-center justify-center"
+                      style={{ zIndex: stackCount + 1, top: 4, right: 4 }}
+                    >
+                      {stackCount}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div
+                  className={`rounded-lg border-2 flex items-center justify-center ${
+                    isHighlighted
+                      ? "border-yellow-400 shadow-[0_0_12px_rgba(250,204,21,0.6)] cursor-pointer bg-black/20"
+                      : "border-dashed border-white/30"
+                  }`}
+                  style={{ width: cardWidth, height: cardHeight }}
+                  onClick={
+                    isHighlighted
+                      ? (e) => {
+                          e.stopPropagation();
+                          onReturnToSlot?.(i);
+                        }
+                      : undefined
+                  }
+                >
+                  {!isHighlighted && (
+                    <span className="text-white/30 text-xs" style={{ fontFamily: "CardenioModernBold, sans-serif" }}>
+                      Empty
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
       <div className="flex flex-col gap-1 ml-1 justify-center">
         <button
@@ -109,7 +157,7 @@ export function HummingbirdTray({
       {showModal && (
         <CardListModal
           title="Hummingbird Tray"
-          cards={cards.filter((c): c is HummingbirdCard => c !== null)}
+          cards={slots.map((slot) => slot[slot.length - 1]).filter(Boolean)}
           renderCard={(card, h) => <HummingbirdCardDisplay card={card as HummingbirdCard} cardHeight={h} />}
           onClose={() => setShowModal(false)}
         />

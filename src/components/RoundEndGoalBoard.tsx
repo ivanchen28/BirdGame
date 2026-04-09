@@ -1,4 +1,5 @@
 import { ArrowPathIcon } from "@heroicons/react/24/solid";
+import greenRotatedBg from "../../assets/powers/green_rotated.png";
 import { iconUrl } from "../icons";
 import type { RoundEndGoalBoardState } from "../types";
 import { ActionCube } from "./ActionCube";
@@ -74,7 +75,7 @@ export const RoundEndGoalBoard: React.FC<RoundEndGoalBoardProps> = ({
             </span>
             <div className="relative flex flex-col border-2 border-gray-400 overflow-hidden">
               <img
-                src="/assets/powers/green_rotated.png"
+                src={greenRotatedBg}
                 alt=""
                 className="absolute pointer-events-none"
                 style={{
@@ -139,9 +140,7 @@ export const RoundEndGoalBoard: React.FC<RoundEndGoalBoardProps> = ({
                         ))}
                       </div>
                     )}
-                    {placingCube && (
-                      <div className="absolute inset-0 rounded border-2 border-yellow-400/60" />
-                    )}
+                    {placingCube && <div className="absolute inset-0 rounded border-2 border-yellow-400/60" />}
                   </div>
                 );
               })}

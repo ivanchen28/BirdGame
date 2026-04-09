@@ -83,7 +83,10 @@ export function Lobby({
     storage.set("birdDiscard", []);
     storage.set("bonusDiscard", []);
     storage.set("hummingbirdDeck", shuffledHummingbirds.slice(5));
-    storage.set("hummingbirdTray", shuffledHummingbirds.slice(0, 5));
+    storage.set(
+      "hummingbirdTray",
+      shuffledHummingbirds.slice(0, 5).map((id) => [id]),
+    );
     storage.set("hummingbirdDiscard", []);
     storage.set("roundEndGoalIds", shuffledGoals.slice(0, 4));
     storage.set(
@@ -108,7 +111,10 @@ export function Lobby({
     storage.set("birdDiscard", []);
     storage.set("bonusDiscard", []);
     storage.set("hummingbirdDeck", shuffledHummingbirds.slice(5));
-    storage.set("hummingbirdTray", shuffledHummingbirds.slice(0, 5));
+    storage.set(
+      "hummingbirdTray",
+      shuffledHummingbirds.slice(0, 5).map((id) => [id]),
+    );
     storage.set("hummingbirdDiscard", []);
     storage.set("roundEndGoalIds", shuffledGoals.slice(0, 4));
     storage.set(

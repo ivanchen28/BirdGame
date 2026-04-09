@@ -94,7 +94,7 @@ function createInitialStorage() {
     birdDiscard: [] as number[],
     bonusDiscard: [] as number[],
     hummingbirdDeck: shuffledHummingbirds.slice(5),
-    hummingbirdTray: shuffledHummingbirds.slice(0, 5) as (number | null)[],
+    hummingbirdTray: shuffledHummingbirds.slice(0, 5).map((id) => [id]),
     hummingbirdDiscard: [] as number[],
     roundEndGoalIds: shuffledGoals.slice(0, 4),
     roundEndSpots: Array.from({ length: 4 }, () => Array.from({ length: 4 }, () => ({ cubeColors: [] as string[] }))),
@@ -169,6 +169,7 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
   // ── Local UI state (not synced) ──
   const [placingHummingbird, setPlacingHummingbird] = useState<number | null>(null);
   const [placingHummingbirdSource, setPlacingHummingbirdSource] = useState<"deck" | number | null>(null);
+  const [returningHummingbird, setReturningHummingbird] = useState<HabitatType | null>(null);
   const [discardModal, setDiscardModal] = useState<"bird" | "bonus" | "hummingbird" | null>(null);
   const [placingBird, setPlacingBird] = useState<number | null>(null);
   const [tuckingBird, setTuckingBird] = useState<number | null>(null);
@@ -624,8 +625,9 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
 
   const hummingbirdTraySelect = useCallback(
     (index: number) => {
-      const cardId = hummingbirdTray[index];
-      if (cardId == null) return;
+      const slot = hummingbirdTray[index];
+      if (!slot || slot.length === 0) return;
+      const cardId = slot[slot.length - 1];
       setPlacingHummingbird(cardId);
       setPlacingHummingbirdSource(index);
     },
@@ -633,12 +635,12 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
   );
 
   const hummingbirdTrayRefill = useMutation(({ storage }) => {
-    const tray = [...storage.get("hummingbirdTray")];
+    const tray = storage.get("hummingbirdTray").map((s: number[]) => [...s]);
     const d = storage.get("hummingbirdDeck");
     let taken = 0;
     for (let i = 0; i < tray.length; i++) {
-      if (tray[i] === null && taken < d.length) {
-        tray[i] = d[taken];
+      if (tray[i].length === 0 && taken < d.length) {
+        tray[i] = [d[taken]];
         taken++;
       }
     }
@@ -650,15 +652,15 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
     const tray = storage.get("hummingbirdTray");
     const d = storage.get("hummingbirdDeck");
     const discard = storage.get("hummingbirdDiscard");
-    const discarded = tray.filter((c): c is number => c !== null);
-    if (discarded.length > 0) {
-      storage.set("hummingbirdDiscard", [...discard, ...discarded]);
+    const allCards = tray.flat();
+    if (allCards.length > 0) {
+      storage.set("hummingbirdDiscard", [...discard, ...allCards]);
     }
     const count = tray.length;
     const available = Math.min(count, d.length);
-    const next: (number | null)[] = [];
+    const next: number[][] = [];
     for (let i = 0; i < count; i++) {
-      next.push(i < available ? d[i] : null);
+      next.push(i < available ? [d[i]] : []);
     }
     storage.set("hummingbirdTray", next);
     storage.set("hummingbirdDeck", d.slice(available));
@@ -672,8 +674,8 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
         const d = storage.get("hummingbirdDeck");
         storage.set("hummingbirdDeck", d.slice(1));
       } else if (typeof placingHummingbirdSource === "number") {
-        const tray = [...storage.get("hummingbirdTray")];
-        tray[placingHummingbirdSource] = null;
+        const tray = storage.get("hummingbirdTray").map((s: number[]) => [...s]);
+        tray[placingHummingbirdSource].pop();
         storage.set("hummingbirdTray", tray);
       }
       const p = storage.get("players")[pid];
@@ -706,16 +708,17 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
     setCachingFood(null);
     setMigratingBird(null);
     setPlacingCube(false);
+    setReturningHummingbird(null);
     cancelPlaceHummingbird();
   }, [cancelPlaceHummingbird]);
 
-  const discardHummingbird = useMutation(
-    ({ storage }, habitat: HabitatType) => {
+  const returnHummingbirdToTray = useMutation(
+    ({ storage }, slotIndex: number) => {
+      if (returningHummingbird == null) return;
+      const habitat = returningHummingbird;
       const p = storage.get("players")[pid];
       const hbId = p.habitats[habitat].hummingbird;
       if (hbId == null) return;
-      const discard = storage.get("hummingbirdDiscard");
-      storage.set("hummingbirdDiscard", [...discard, hbId]);
       storage.set("players", {
         ...storage.get("players"),
         [pid]: {
@@ -723,8 +726,12 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
           habitats: { ...p.habitats, [habitat]: { ...p.habitats[habitat], hummingbird: null } },
         },
       });
+      const tray = storage.get("hummingbirdTray").map((s: number[]) => [...s]);
+      tray[slotIndex] = [...tray[slotIndex], hbId];
+      storage.set("hummingbirdTray", tray);
+      setReturningHummingbird(null);
     },
-    [pid],
+    [returningHummingbird, pid],
   );
 
   const moveHummingbird = useMutation(
@@ -963,7 +970,8 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
             onDiscardPlayed={isViewingOther ? undefined : discardPlayedBird}
             placingHummingbird={isViewingOther ? null : placingHummingbird}
             onPlaceHummingbird={isViewingOther ? undefined : placeHummingbird}
-            onDiscardHummingbird={isViewingOther ? undefined : discardHummingbird}
+            onReturnHummingbird={isViewingOther ? undefined : (h: HabitatType) => setReturningHummingbird(h)}
+            returningHummingbird={isViewingOther ? null : returningHummingbird}
             onNectarChange={isViewingOther ? undefined : onNectarChange}
             onUseFood={isViewingOther ? () => {} : removeFood}
             onStartCache={isViewingOther ? () => {} : (food) => setCachingFood(food)}
@@ -1124,13 +1132,15 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
               </div>
             </div>
             <HummingbirdTray
-              cards={hummingbirdTray.map((id: number | null) => (id != null ? getHummingbird(id) : null))}
+              slots={hummingbirdTray.map((slot: number[]) => slot.map(getHummingbird))}
               cardWidth={DECK_HUMMINGBIRD_WIDTH}
               cardHeight={DECK_HUMMINGBIRD_HEIGHT}
               onSelect={hummingbirdTraySelect}
               onRefill={hummingbirdTrayRefill}
               onReset={hummingbirdTrayReset}
               disabled={isViewingOther}
+              returningHummingbird={!!returningHummingbird && !isViewingOther}
+              onReturnToSlot={returnHummingbirdToTray}
             />
           </div>
         </div>
