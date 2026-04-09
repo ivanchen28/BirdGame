@@ -240,6 +240,7 @@ const BirdSlot: React.FC<{
 
 interface GameBoardProps {
   player: Player;
+  readOnly?: boolean;
   placingBird?: number | null;
   onPlaceBird?: (habitat: HabitatType) => void;
   tuckingBird?: number | null;
@@ -270,6 +271,7 @@ interface GameBoardProps {
 
 export const GameBoard: React.FC<GameBoardProps> = ({
   player,
+  readOnly: _readOnly,
   placingBird,
   onPlaceBird,
   tuckingBird,

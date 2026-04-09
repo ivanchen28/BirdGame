@@ -57,7 +57,7 @@ function initPositions(w: number, h: number): Map<number, { x: number; y: number
   return map;
 }
 
-export function BirdFeeder({ size = DEFAULT_FEEDER_SIZE, height }: { size?: number; height?: number } = {}) {
+export function BirdFeeder({ size = DEFAULT_FEEDER_SIZE, height, disabled }: { size?: number; height?: number; disabled?: boolean } = {}) {
   const feederHeight = height ?? Math.round(size);
   const feederDice = useStorage((root) => root.feederDice)!;
   const takenDice = useStorage((root) => root.takenDice)!;
@@ -77,16 +77,19 @@ export function BirdFeeder({ size = DEFAULT_FEEDER_SIZE, height }: { size?: numb
     }
   }, [feederDice, size, feederHeight]);
 
-  const reroll = useMutation(({ storage }) => {
-    const newDice = Array.from({ length: DICE_COUNT }, (_, i) => rollDie(createDie(i, false)));
-    storage.set("feederDice", newDice);
-    storage.set("takenDice", []);
-    // Update local positions
-    const pos = scatteredPositions(DICE_COUNT, size, feederHeight, DIE_SIZE);
-    const map = new Map<number, { x: number; y: number }>();
-    for (let i = 0; i < DICE_COUNT; i++) map.set(newDice[i].id, pos[i]);
-    positionsRef.current = map;
-  }, [size, feederHeight]);
+  const reroll = useMutation(
+    ({ storage }) => {
+      const newDice = Array.from({ length: DICE_COUNT }, (_, i) => rollDie(createDie(i, false)));
+      storage.set("feederDice", newDice);
+      storage.set("takenDice", []);
+      // Update local positions
+      const pos = scatteredPositions(DICE_COUNT, size, feederHeight, DIE_SIZE);
+      const map = new Map<number, { x: number; y: number }>();
+      for (let i = 0; i < DICE_COUNT; i++) map.set(newDice[i].id, pos[i]);
+      positionsRef.current = map;
+    },
+    [size, feederHeight],
+  );
 
   const takeDie = useMutation(({ storage }, dieId: number) => {
     const dice = storage.get("feederDice") as Die[];
@@ -112,7 +115,10 @@ export function BirdFeeder({ size = DEFAULT_FEEDER_SIZE, height }: { size?: numb
     const die = taken.find((d: Die) => d.id === dieId);
     if (!die) return;
     const rerolled = rollDie(die);
-    storage.set("takenDice", taken.map((d: Die) => (d.id === dieId ? rerolled : d)));
+    storage.set(
+      "takenDice",
+      taken.map((d: Die) => (d.id === dieId ? rerolled : d)),
+    );
   }, []);
 
   return (
@@ -120,7 +126,7 @@ export function BirdFeeder({ size = DEFAULT_FEEDER_SIZE, height }: { size?: numb
       {/* Taken dice */}
       <div className="flex flex-wrap gap-2 justify-center items-center" style={{ maxWidth: size, height: 44 }}>
         {takenDice.map((die, i) => (
-          <div key={`taken-${i}`} className="relative group cursor-pointer" onClick={() => rerollTakenDie(die.id)}>
+          <div key={`taken-${i}`} className={`relative group ${disabled ? "cursor-default" : "cursor-pointer"}`} onClick={disabled ? undefined : () => rerollTakenDie(die.id)}>
             <DieDisplay face={die.currentFace} size={TAKEN_DIE_SIZE} />
             <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity">
               <ArrowPathIcon className="h-5 w-5 text-white drop-shadow" />
@@ -147,7 +153,7 @@ export function BirdFeeder({ size = DEFAULT_FEEDER_SIZE, height }: { size?: numb
           const pos = positionsRef.current.get(die.id);
           return (
             <div key={die.id} className="absolute" style={{ left: pos?.x ?? 0, top: pos?.y ?? 0 }}>
-              <DieDisplay face={die.currentFace} size={DIE_SIZE} onClick={() => takeDie(die.id)} />
+              <DieDisplay face={die.currentFace} size={DIE_SIZE} onClick={disabled ? undefined : () => takeDie(die.id)} />
             </div>
           );
         })}
@@ -158,8 +164,9 @@ export function BirdFeeder({ size = DEFAULT_FEEDER_SIZE, height }: { size?: numb
         )}
         {/* Reroll button */}
         <button
-          onClick={reroll}
-          className="absolute top-1.5 right-1.5 p-1 rounded-md cursor-pointer transition-colors hover:bg-white/20"
+          onClick={disabled ? undefined : reroll}
+          disabled={disabled}
+          className={`absolute top-1.5 right-1.5 p-1 rounded-md transition-colors ${disabled ? "cursor-default opacity-40" : "cursor-pointer hover:bg-white/20"}`}
           style={{
             background: "rgba(0,0,0,0.4)",
             border: "1px solid rgba(255,255,255,0.3)",

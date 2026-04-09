@@ -5,9 +5,10 @@ interface BirdDeckProps {
   width: number;
   height: number;
   onDraw: () => void;
+  disabled?: boolean;
 }
 
-export function BirdDeck({ count, width, height, onDraw }: BirdDeckProps) {
+export function BirdDeck({ count, width, height, onDraw, disabled }: BirdDeckProps) {
   if (count === 0) {
     return (
       <div
@@ -27,7 +28,7 @@ export function BirdDeck({ count, width, height, onDraw }: BirdDeckProps) {
   }
 
   return (
-    <button onClick={onDraw} className="relative group cursor-pointer" style={{ width, height }}>
+    <button onClick={disabled ? undefined : onDraw} disabled={disabled} className={`relative group ${disabled ? "cursor-default" : "cursor-pointer"}`} style={{ width, height }}>
       {[3, 2, 1, 0].map((i) => (
         <div
           key={i}

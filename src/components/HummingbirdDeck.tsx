@@ -5,9 +5,10 @@ interface HummingbirdDeckProps {
   width: number;
   height: number;
   onDraw: () => void;
+  disabled?: boolean;
 }
 
-export function HummingbirdDeck({ count, width, height, onDraw }: HummingbirdDeckProps) {
+export function HummingbirdDeck({ count, width, height, onDraw, disabled }: HummingbirdDeckProps) {
   if (count === 0) {
     return (
       <div
@@ -27,7 +28,7 @@ export function HummingbirdDeck({ count, width, height, onDraw }: HummingbirdDec
   }
 
   return (
-    <button onClick={onDraw} className="relative group cursor-pointer" style={{ width, height }}>
+    <button onClick={disabled ? undefined : onDraw} disabled={disabled} className={`relative group ${disabled ? "cursor-default" : "cursor-pointer"}`} style={{ width, height }}>
       {[3, 2, 1, 0].map((i) => (
         <div
           key={i}

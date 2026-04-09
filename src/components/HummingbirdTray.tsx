@@ -11,9 +11,10 @@ interface HummingbirdTrayProps {
   onSelect: (index: number) => void;
   onRefill: () => void;
   onReset: () => void;
+  disabled?: boolean;
 }
 
-export function HummingbirdTray({ cards, cardWidth, cardHeight, onSelect, onRefill, onReset }: HummingbirdTrayProps) {
+export function HummingbirdTray({ cards, cardWidth, cardHeight, onSelect, onRefill, onReset, disabled }: HummingbirdTrayProps) {
   const [showModal, setShowModal] = useState(false);
 
   return (
@@ -29,8 +30,8 @@ export function HummingbirdTray({ cards, cardWidth, cardHeight, onSelect, onRefi
           <div key={card?.id ?? `empty-${i}`} className="relative">
             {card ? (
               <div
-                className="cursor-pointer rounded-lg transition-shadow hover:ring-2 hover:ring-yellow-400 hover:shadow-[0_0_12px_rgba(250,204,21,0.6)]"
-                onClick={(e) => {
+                className={`rounded-lg transition-shadow ${disabled ? "cursor-default" : "cursor-pointer hover:ring-2 hover:ring-yellow-400 hover:shadow-[0_0_12px_rgba(250,204,21,0.6)]"}`}
+                onClick={disabled ? undefined : (e) => {
                   e.stopPropagation();
                   onSelect(i);
                 }}

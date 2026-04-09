@@ -1,4 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
+import birdBackUrl from "../assets/cards/backgrounds/bird-background.jpg";
+import bonusBackUrl from "../assets/cards/backgrounds/bonus-background.jpg";
 import {
   allBirdIds,
   allBonusIds,
@@ -26,12 +28,12 @@ import { HummingbirdDeck } from "./components/HummingbirdDeck";
 import { HummingbirdDiscardPile } from "./components/HummingbirdDiscardPile";
 import { HummingbirdTrack } from "./components/HummingbirdTrack";
 import { HummingbirdTray } from "./components/HummingbirdTray";
+import { Lobby } from "./components/Lobby";
 import { RoundEndGoalBoard } from "./components/RoundEndGoalBoard";
 import { foodUrl, iconUrl } from "./icons";
-import { RoomProvider, useMutation, useStorage } from "./liveblocks.config";
+import { initialPresence, RoomProvider, useMutation, useStorage } from "./liveblocks.config";
 import {
   createDie,
-  createPlayer,
   rollDie,
   toPlayedBirdState,
   type BirdCard,
@@ -40,6 +42,7 @@ import {
   type HabitatType,
   type HummingbirdCard,
   type HummingbirdGroup,
+  type Player,
   type RoundEndSpot,
 } from "./types";
 
@@ -84,6 +87,7 @@ function createInitialStorage() {
   const initialDice = Array.from({ length: DICE_COUNT }, (_, i) => rollDie(createDie(i, false)));
 
   return {
+    gamePhase: "lobby" as const,
     birdDeck: shuffledBirds.slice(3),
     birdTray: shuffledBirds.slice(0, 3) as (number | null)[],
     bonusDeck: shuffledBonus,
@@ -93,26 +97,38 @@ function createInitialStorage() {
     hummingbirdTray: shuffledHummingbirds.slice(0, 5) as (number | null)[],
     hummingbirdDiscard: [] as number[],
     roundEndGoalIds: shuffledGoals.slice(0, 4),
-    roundEndSpots: Array.from({ length: 4 }, () =>
-      Array.from({ length: 4 }, () => ({ cubeColors: [] as string[] })),
-    ),
+    roundEndSpots: Array.from({ length: 4 }, () => Array.from({ length: 4 }, () => ({ cubeColors: [] as string[] }))),
     feederDice: initialDice,
     takenDice: [] as typeof initialDice,
-    player: createPlayer("Player 1", "white"),
+    players: {} as Record<string, Player>,
     initialized: true,
   };
 }
 
 function App() {
+  const [playerName, setPlayerName] = useState<string | null>(() => localStorage.getItem("wingspan-playerName"));
+
+  const handleJoin = (name: string) => {
+    if (name) {
+      localStorage.setItem("wingspan-playerName", name);
+      setPlayerName(name);
+    } else {
+      localStorage.removeItem("wingspan-playerName");
+      setPlayerName(null);
+    }
+  };
+
   return (
-    <RoomProvider id="wingspan-game" initialStorage={createInitialStorage()}>
-      <GameLoader />
+    <RoomProvider id="wingspan-game-v2" initialPresence={initialPresence} initialStorage={createInitialStorage()}>
+      <GameLoader playerName={playerName} onJoin={handleJoin} />
     </RoomProvider>
   );
 }
 
-function GameLoader() {
+function GameLoader({ playerName, onJoin }: { playerName: string | null; onJoin: (name: string) => void }) {
   const isReady = useStorage((root) => root.initialized);
+  const gamePhase = useStorage((root) => root.gamePhase);
+
   if (isReady == null) {
     return (
       <div className="fixed inset-0 bg-gradient-to-br from-emerald-800 to-emerald-950 flex items-center justify-center">
@@ -120,12 +136,22 @@ function GameLoader() {
       </div>
     );
   }
-  return <Game />;
+
+  if (gamePhase === "lobby") {
+    return <Lobby playerName={playerName} onJoin={onJoin} />;
+  }
+
+  if (!playerName) {
+    return <Lobby playerName={playerName} onJoin={onJoin} />;
+  }
+
+  return <Game currentPlayerId={playerName} />;
 }
 
-function Game() {
+function Game({ currentPlayerId }: { currentPlayerId: string }) {
   // ── Read synced state from Liveblocks ──
-  const player = useStorage((root) => root.player)!;
+  const allPlayers = useStorage((root) => root.players) as Record<string, Player> | null;
+  const player = useStorage((root) => root.players[currentPlayerId] as Player)!;
   const deck = useStorage((root) => root.birdDeck)!;
   const birdTray = useStorage((root) => root.birdTray)!;
   const bonusDeck = useStorage((root) => root.bonusDeck)!;
@@ -136,6 +162,12 @@ function Game() {
   const hummingbirdDiscard = useStorage((root) => root.hummingbirdDiscard)!;
   const roundEndGoalIds = useStorage((root) => root.roundEndGoalIds)!;
   const roundEndSpots = useStorage((root) => root.roundEndSpots)!;
+
+  // ── Board viewing state ──
+  const [viewingPlayerId, setViewingPlayerId] = useState<string>(currentPlayerId);
+  const isViewingOther = viewingPlayerId !== currentPlayerId;
+  const viewedPlayer = allPlayers?.[viewingPlayerId] ?? player;
+  const playerNames = allPlayers ? Object.keys(allPlayers) : [];
 
   // ── Local UI state (not synced) ──
   const [placingHummingbird, setPlacingHummingbird] = useState<number | null>(null);
@@ -149,92 +181,125 @@ function Game() {
   const [migratingBird, setMigratingBird] = useState<{ habitat: HabitatType; birdIndex: number } | null>(null);
   const [placingCube, setPlacingCube] = useState(false);
 
+  // Helper to read current player from storage within mutations
+  const pid = currentPlayerId;
+
   // ── Synced mutations ──
 
   const playBirdToHabitat = useMutation(
     ({ storage }, habitat: HabitatType) => {
       if (!placingBird) return;
       const birdId = placingBird;
-      const p = storage.get("player");
-      storage.set("player", {
-        ...p,
-        birdHand: p.birdHand.filter((id: number) => id !== birdId),
-        habitats: {
-          ...p.habitats,
-          [habitat]: {
-            ...p.habitats[habitat],
-            birds: [...p.habitats[habitat].birds, toPlayedBirdState(birdId)],
+      const p = storage.get("players")[pid];
+      storage.set("players", {
+        ...storage.get("players"),
+        [pid]: {
+          ...p,
+          birdHand: p.birdHand.filter((id: number) => id !== birdId),
+          habitats: {
+            ...p.habitats,
+            [habitat]: {
+              ...p.habitats[habitat],
+              birds: [...p.habitats[habitat].birds, toPlayedBirdState(birdId)],
+            },
           },
         },
       });
       setPlacingBird(null);
     },
-    [placingBird],
+    [placingBird, pid],
   );
 
   const tuckBirdBehind = useMutation(
     ({ storage }, habitat: HabitatType, birdIndex: number) => {
       if (!tuckingBird) return;
       const cardId = tuckingBird;
-      const p = storage.get("player");
+      const p = storage.get("players")[pid];
       const birds = [...p.habitats[habitat].birds];
       const target = birds[birdIndex];
       birds[birdIndex] = {
         ...target,
         tuckedCardIds: [...target.tuckedCardIds, cardId],
       };
-      storage.set("player", {
-        ...p,
-        birdHand: p.birdHand.filter((id: number) => id !== cardId),
-        habitats: {
-          ...p.habitats,
-          [habitat]: { ...p.habitats[habitat], birds },
+      storage.set("players", {
+        ...storage.get("players"),
+        [pid]: {
+          ...p,
+          birdHand: p.birdHand.filter((id: number) => id !== cardId),
+          habitats: {
+            ...p.habitats,
+            [habitat]: { ...p.habitats[habitat], birds },
+          },
         },
       });
       setTuckingBird(null);
     },
-    [tuckingBird],
+    [tuckingBird, pid],
   );
 
-  const layEggOnBird = useMutation(({ storage }, habitat: HabitatType, birdIndex: number) => {
-    const p = storage.get("player");
-    const birds = [...p.habitats[habitat].birds];
-    const target = birds[birdIndex];
-    birds[birdIndex] = { ...target, eggsLaid: target.eggsLaid + 1 };
-    storage.set("player", {
-      ...p,
-      habitats: { ...p.habitats, [habitat]: { ...p.habitats[habitat], birds } },
-    });
-  }, []);
+  const layEggOnBird = useMutation(
+    ({ storage }, habitat: HabitatType, birdIndex: number) => {
+      const p = storage.get("players")[pid];
+      const birds = [...p.habitats[habitat].birds];
+      const target = birds[birdIndex];
+      birds[birdIndex] = { ...target, eggsLaid: target.eggsLaid + 1 };
+      storage.set("players", {
+        ...storage.get("players"),
+        [pid]: {
+          ...p,
+          habitats: { ...p.habitats, [habitat]: { ...p.habitats[habitat], birds } },
+        },
+      });
+    },
+    [pid],
+  );
 
-  const removeEggFromBird = useMutation(({ storage }, habitat: HabitatType, birdIndex: number) => {
-    const p = storage.get("player");
-    const birds = [...p.habitats[habitat].birds];
-    const target = birds[birdIndex];
-    if (target.eggsLaid <= 0) return;
-    birds[birdIndex] = { ...target, eggsLaid: target.eggsLaid - 1 };
-    storage.set("player", {
-      ...p,
-      habitats: { ...p.habitats, [habitat]: { ...p.habitats[habitat], birds } },
-    });
-  }, []);
+  const removeEggFromBird = useMutation(
+    ({ storage }, habitat: HabitatType, birdIndex: number) => {
+      const p = storage.get("players")[pid];
+      const birds = [...p.habitats[habitat].birds];
+      const target = birds[birdIndex];
+      if (target.eggsLaid <= 0) return;
+      birds[birdIndex] = { ...target, eggsLaid: target.eggsLaid - 1 };
+      storage.set("players", {
+        ...storage.get("players"),
+        [pid]: {
+          ...p,
+          habitats: { ...p.habitats, [habitat]: { ...p.habitats[habitat], birds } },
+        },
+      });
+    },
+    [pid],
+  );
 
-  const gainFood = useMutation(({ storage }, foodType: FoodType) => {
-    const p = storage.get("player");
-    storage.set("player", { ...p, food: { ...p.food, [foodType]: p.food[foodType] + 1 } });
-  }, []);
+  const gainFood = useMutation(
+    ({ storage }, foodType: FoodType) => {
+      const p = storage.get("players")[pid];
+      storage.set("players", {
+        ...storage.get("players"),
+        [pid]: { ...p, food: { ...p.food, [foodType]: p.food[foodType] + 1 } },
+      });
+    },
+    [pid],
+  );
 
-  const removeFood = useMutation(({ storage }, foodType: FoodType) => {
-    const p = storage.get("player");
-    if (p.food[foodType] <= 0) return;
-    storage.set("player", { ...p, food: { ...p.food, [foodType]: p.food[foodType] - 1 } });
-  }, []);
+  const removeFood = useMutation(
+    ({ storage }, foodType: FoodType) => {
+      const p = storage.get("players")[pid];
+      if (p.food[foodType] <= 0) return;
+      storage.set("players", {
+        ...storage.get("players"),
+        [pid]: { ...p, food: { ...p.food, [foodType]: p.food[foodType] - 1 } },
+      });
+    },
+    [pid],
+  );
 
   const cacheFoodOnBird = useMutation(
     ({ storage }, habitat: HabitatType, birdIndex: number) => {
       if (!cachingFood) return;
       const foodType = cachingFood;
-      const p = storage.get("player");
+      const p = storage.get("players")[pid];
       if (p.food[foodType] <= 0) return;
       const birds = [...p.habitats[habitat].birds];
       const target = birds[birdIndex];
@@ -242,20 +307,23 @@ function Game() {
         ...target,
         cachedFood: { ...target.cachedFood, [foodType]: target.cachedFood[foodType] + 1 },
       };
-      storage.set("player", {
-        ...p,
-        food: { ...p.food, [foodType]: p.food[foodType] - 1 },
-        habitats: { ...p.habitats, [habitat]: { ...p.habitats[habitat], birds } },
+      storage.set("players", {
+        ...storage.get("players"),
+        [pid]: {
+          ...p,
+          food: { ...p.food, [foodType]: p.food[foodType] - 1 },
+          habitats: { ...p.habitats, [habitat]: { ...p.habitats[habitat], birds } },
+        },
       });
       setCachingFood(null);
     },
-    [cachingFood],
+    [cachingFood, pid],
   );
 
   const unTuck = useMutation(
     ({ storage }, cardId: number) => {
       if (!viewingTucked) return;
-      const p = storage.get("player");
+      const p = storage.get("players")[pid];
       const birds = [...p.habitats[viewingTucked.habitat].birds];
       const target = birds[viewingTucked.birdIndex];
       if (!target.tuckedCardIds.includes(cardId)) return;
@@ -263,18 +331,21 @@ function Game() {
         ...target,
         tuckedCardIds: target.tuckedCardIds.filter((id: number) => id !== cardId),
       };
-      storage.set("player", {
-        ...p,
-        birdHand: [...p.birdHand, cardId],
-        habitats: {
-          ...p.habitats,
-          [viewingTucked.habitat]: { ...p.habitats[viewingTucked.habitat], birds },
+      storage.set("players", {
+        ...storage.get("players"),
+        [pid]: {
+          ...p,
+          birdHand: [...p.birdHand, cardId],
+          habitats: {
+            ...p.habitats,
+            [viewingTucked.habitat]: { ...p.habitats[viewingTucked.habitat], birds },
+          },
         },
       });
       const remaining = birds[viewingTucked.birdIndex].tuckedCardIds.length;
       if (remaining <= 0) setViewingTucked(null);
     },
-    [viewingTucked],
+    [viewingTucked, pid],
   );
 
   const startMigrate = useCallback((habitat: HabitatType, birdIndex: number) => {
@@ -285,155 +356,212 @@ function Game() {
     ({ storage }, targetHabitat: HabitatType) => {
       if (!migratingBird) return;
       const { habitat: srcHabitat, birdIndex } = migratingBird;
-      const p = storage.get("player");
+      const p = storage.get("players")[pid];
       const srcBirds = [...p.habitats[srcHabitat].birds];
       const bird = srcBirds[birdIndex];
       if (!bird) return;
       srcBirds.splice(birdIndex, 1);
       const destBirds = [...p.habitats[targetHabitat].birds, bird];
-      storage.set("player", {
-        ...p,
-        habitats: {
-          ...p.habitats,
-          [srcHabitat]: { ...p.habitats[srcHabitat], birds: srcBirds },
-          [targetHabitat]: { ...p.habitats[targetHabitat], birds: destBirds },
+      storage.set("players", {
+        ...storage.get("players"),
+        [pid]: {
+          ...p,
+          habitats: {
+            ...p.habitats,
+            [srcHabitat]: { ...p.habitats[srcHabitat], birds: srcBirds },
+            [targetHabitat]: { ...p.habitats[targetHabitat], birds: destBirds },
+          },
         },
       });
       setMigratingBird(null);
     },
-    [migratingBird],
+    [migratingBird, pid],
   );
 
-  const placeActionCube = useMutation(({ storage }, habitat: HabitatType | "playABird") => {
-    const p = storage.get("player");
-    if (p.actionCubes <= 0) return;
-    if (habitat === "playABird") {
-      storage.set("player", {
-        ...p,
-        actionCubes: p.actionCubes - 1,
-        playABirdCubes: p.playABirdCubes + 1,
-      });
-    } else {
-      if (p.habitats[habitat].activeCube !== null) return;
-      const birdCount = p.habitats[habitat].birds.length;
-      const slot = birdCount < 5 ? birdCount + 1 : 6;
-      storage.set("player", {
-        ...p,
-        actionCubes: p.actionCubes - 1,
-        habitats: {
-          ...p.habitats,
-          [habitat]: { ...p.habitats[habitat], activeCube: slot },
-        },
-      });
-    }
-    setPlacingCube(false);
-  }, []);
-
-  const handleCubeClick = useMutation(({ storage }, habitat: HabitatType, shiftKey: boolean) => {
-    const p = storage.get("player");
-    const current = p.habitats[habitat].activeCube;
-    if (current == null) return;
-    if (shiftKey) {
-      if (current >= 6) {
-        storage.set("player", {
-          ...p,
-          actionCubes: p.actionCubes + 1,
-          habitats: { ...p.habitats, [habitat]: { ...p.habitats[habitat], activeCube: null } },
-        });
-      } else {
-        storage.set("player", {
-          ...p,
-          habitats: { ...p.habitats, [habitat]: { ...p.habitats[habitat], activeCube: current + 1 } },
-        });
-      }
-    } else {
-      if (current <= 1) {
-        storage.set("player", {
-          ...p,
-          habitats: {
-            ...p.habitats,
-            [habitat]: {
-              ...p.habitats[habitat],
-              activeCube: null,
-              actionCubes: p.habitats[habitat].actionCubes + 1,
-            },
+  const placeActionCube = useMutation(
+    ({ storage }, habitat: HabitatType | "playABird") => {
+      const p = storage.get("players")[pid];
+      if (p.actionCubes <= 0) return;
+      if (habitat === "playABird") {
+        storage.set("players", {
+          ...storage.get("players"),
+          [pid]: {
+            ...p,
+            actionCubes: p.actionCubes - 1,
+            playABirdCubes: p.playABirdCubes + 1,
           },
         });
       } else {
-        storage.set("player", {
-          ...p,
-          habitats: { ...p.habitats, [habitat]: { ...p.habitats[habitat], activeCube: current - 1 } },
+        if (p.habitats[habitat].activeCube !== null) return;
+        const birdCount = p.habitats[habitat].birds.length;
+        const slot = birdCount < 5 ? birdCount + 1 : 6;
+        storage.set("players", {
+          ...storage.get("players"),
+          [pid]: {
+            ...p,
+            actionCubes: p.actionCubes - 1,
+            habitats: {
+              ...p.habitats,
+              [habitat]: { ...p.habitats[habitat], activeCube: slot },
+            },
+          },
         });
       }
-    }
-  }, []);
+      setPlacingCube(false);
+    },
+    [pid],
+  );
 
-  const returnPlayedBirdToHand = useMutation(({ storage }, habitat: HabitatType, birdIndex: number) => {
-    const p = storage.get("player");
-    const birdState = p.habitats[habitat].birds[birdIndex];
-    if (!birdState) return;
-    const birds = [...p.habitats[habitat].birds];
-    birds.splice(birdIndex, 1);
-    storage.set("player", {
-      ...p,
-      birdHand: [...p.birdHand, birdState.id],
-      habitats: { ...p.habitats, [habitat]: { ...p.habitats[habitat], birds } },
-    });
-    if (birdState.tuckedCardIds.length > 0) {
+  const handleCubeClick = useMutation(
+    ({ storage }, habitat: HabitatType, shiftKey: boolean) => {
+      const p = storage.get("players")[pid];
+      const current = p.habitats[habitat].activeCube;
+      if (current == null) return;
+      if (shiftKey) {
+        if (current >= 6) {
+          storage.set("players", {
+            ...storage.get("players"),
+            [pid]: {
+              ...p,
+              actionCubes: p.actionCubes + 1,
+              habitats: { ...p.habitats, [habitat]: { ...p.habitats[habitat], activeCube: null } },
+            },
+          });
+        } else {
+          storage.set("players", {
+            ...storage.get("players"),
+            [pid]: {
+              ...p,
+              habitats: { ...p.habitats, [habitat]: { ...p.habitats[habitat], activeCube: current + 1 } },
+            },
+          });
+        }
+      } else {
+        if (current <= 1) {
+          storage.set("players", {
+            ...storage.get("players"),
+            [pid]: {
+              ...p,
+              habitats: {
+                ...p.habitats,
+                [habitat]: {
+                  ...p.habitats[habitat],
+                  activeCube: null,
+                  actionCubes: p.habitats[habitat].actionCubes + 1,
+                },
+              },
+            },
+          });
+        } else {
+          storage.set("players", {
+            ...storage.get("players"),
+            [pid]: {
+              ...p,
+              habitats: { ...p.habitats, [habitat]: { ...p.habitats[habitat], activeCube: current - 1 } },
+            },
+          });
+        }
+      }
+    },
+    [pid],
+  );
+
+  const returnPlayedBirdToHand = useMutation(
+    ({ storage }, habitat: HabitatType, birdIndex: number) => {
+      const p = storage.get("players")[pid];
+      const birdState = p.habitats[habitat].birds[birdIndex];
+      if (!birdState) return;
+      const birds = [...p.habitats[habitat].birds];
+      birds.splice(birdIndex, 1);
+      storage.set("players", {
+        ...storage.get("players"),
+        [pid]: {
+          ...p,
+          birdHand: [...p.birdHand, birdState.id],
+          habitats: { ...p.habitats, [habitat]: { ...p.habitats[habitat], birds } },
+        },
+      });
+      if (birdState.tuckedCardIds.length > 0) {
+        const discard = storage.get("birdDiscard");
+        storage.set("birdDiscard", [...discard, ...birdState.tuckedCardIds]);
+      }
+    },
+    [pid],
+  );
+
+  const discardPlayedBird = useMutation(
+    ({ storage }, habitat: HabitatType, birdIndex: number) => {
+      const p = storage.get("players")[pid];
+      const birdState = p.habitats[habitat].birds[birdIndex];
+      if (!birdState) return;
+      const birds = [...p.habitats[habitat].birds];
+      birds.splice(birdIndex, 1);
+      storage.set("players", {
+        ...storage.get("players"),
+        [pid]: {
+          ...p,
+          habitats: { ...p.habitats, [habitat]: { ...p.habitats[habitat], birds } },
+        },
+      });
       const discard = storage.get("birdDiscard");
-      storage.set("birdDiscard", [...discard, ...birdState.tuckedCardIds]);
-    }
-  }, []);
+      storage.set("birdDiscard", [...discard, birdState.id, ...birdState.tuckedCardIds]);
+    },
+    [pid],
+  );
 
-  const discardPlayedBird = useMutation(({ storage }, habitat: HabitatType, birdIndex: number) => {
-    const p = storage.get("player");
-    const birdState = p.habitats[habitat].birds[birdIndex];
-    if (!birdState) return;
-    const birds = [...p.habitats[habitat].birds];
-    birds.splice(birdIndex, 1);
-    storage.set("player", {
-      ...p,
-      habitats: { ...p.habitats, [habitat]: { ...p.habitats[habitat], birds } },
-    });
-    const discard = storage.get("birdDiscard");
-    storage.set("birdDiscard", [...discard, birdState.id, ...birdState.tuckedCardIds]);
-  }, []);
+  const discardBird = useMutation(
+    ({ storage }, birdId: number) => {
+      const p = storage.get("players")[pid];
+      if (!p.birdHand.includes(birdId)) return;
+      storage.set("players", {
+        ...storage.get("players"),
+        [pid]: { ...p, birdHand: p.birdHand.filter((id: number) => id !== birdId) },
+      });
+      const discard = storage.get("birdDiscard");
+      storage.set("birdDiscard", [...discard, birdId]);
+    },
+    [pid],
+  );
 
-  const discardBird = useMutation(({ storage }, birdId: number) => {
-    const p = storage.get("player");
-    if (!p.birdHand.includes(birdId)) return;
-    storage.set("player", { ...p, birdHand: p.birdHand.filter((id: number) => id !== birdId) });
-    const discard = storage.get("birdDiscard");
-    storage.set("birdDiscard", [...discard, birdId]);
-  }, []);
+  const discardBonus = useMutation(
+    ({ storage }, bonusId: number) => {
+      const p = storage.get("players")[pid];
+      if (!p.bonusHand.includes(bonusId)) return;
+      storage.set("players", {
+        ...storage.get("players"),
+        [pid]: { ...p, bonusHand: p.bonusHand.filter((id: number) => id !== bonusId) },
+      });
+      const discard = storage.get("bonusDiscard");
+      storage.set("bonusDiscard", [...discard, bonusId]);
+    },
+    [pid],
+  );
 
-  const discardBonus = useMutation(({ storage }, bonusId: number) => {
-    const p = storage.get("player");
-    if (!p.bonusHand.includes(bonusId)) return;
-    storage.set("player", { ...p, bonusHand: p.bonusHand.filter((id: number) => id !== bonusId) });
-    const discard = storage.get("bonusDiscard");
-    storage.set("bonusDiscard", [...discard, bonusId]);
-  }, []);
+  const drawCard = useMutation(
+    ({ storage }) => {
+      const d = storage.get("birdDeck");
+      if (d.length === 0) return;
+      const cardId = d[0];
+      storage.set("birdDeck", d.slice(1));
+      const p = storage.get("players")[pid];
+      storage.set("players", { ...storage.get("players"), [pid]: { ...p, birdHand: [...p.birdHand, cardId] } });
+    },
+    [pid],
+  );
 
-  const drawCard = useMutation(({ storage }) => {
-    const d = storage.get("birdDeck");
-    if (d.length === 0) return;
-    const cardId = d[0];
-    storage.set("birdDeck", d.slice(1));
-    const p = storage.get("player");
-    storage.set("player", { ...p, birdHand: [...p.birdHand, cardId] });
-  }, []);
-
-  const trayAddToHand = useMutation(({ storage }, index: number) => {
-    const tray = storage.get("birdTray");
-    const cardId = tray[index];
-    if (cardId == null) return;
-    const p = storage.get("player");
-    storage.set("player", { ...p, birdHand: [...p.birdHand, cardId] });
-    const next = [...tray];
-    next[index] = null;
-    storage.set("birdTray", next);
-  }, []);
+  const trayAddToHand = useMutation(
+    ({ storage }, index: number) => {
+      const tray = storage.get("birdTray");
+      const cardId = tray[index];
+      if (cardId == null) return;
+      const p = storage.get("players")[pid];
+      storage.set("players", { ...storage.get("players"), [pid]: { ...p, birdHand: [...p.birdHand, cardId] } });
+      const next = [...tray];
+      next[index] = null;
+      storage.set("birdTray", next);
+    },
+    [pid],
+  );
 
   const trayDiscard = useMutation(({ storage }, index: number) => {
     const tray = storage.get("birdTray");
@@ -478,14 +606,17 @@ function Game() {
     storage.set("birdDeck", d.slice(available));
   }, []);
 
-  const drawBonusCard = useMutation(({ storage }) => {
-    const d = storage.get("bonusDeck");
-    if (d.length === 0) return;
-    const cardId = d[0];
-    storage.set("bonusDeck", d.slice(1));
-    const p = storage.get("player");
-    storage.set("player", { ...p, bonusHand: [...p.bonusHand, cardId] });
-  }, []);
+  const drawBonusCard = useMutation(
+    ({ storage }) => {
+      const d = storage.get("bonusDeck");
+      if (d.length === 0) return;
+      const cardId = d[0];
+      storage.set("bonusDeck", d.slice(1));
+      const p = storage.get("players")[pid];
+      storage.set("players", { ...storage.get("players"), [pid]: { ...p, bonusHand: [...p.bonusHand, cardId] } });
+    },
+    [pid],
+  );
 
   const drawHummingbird = useCallback(() => {
     if (hummingbirdDeck.length === 0) return;
@@ -548,18 +679,21 @@ function Game() {
         tray[placingHummingbirdSource] = null;
         storage.set("hummingbirdTray", tray);
       }
-      const p = storage.get("player");
-      storage.set("player", {
-        ...p,
-        habitats: {
-          ...p.habitats,
-          [habitat]: { ...p.habitats[habitat], hummingbird: cardId },
+      const p = storage.get("players")[pid];
+      storage.set("players", {
+        ...storage.get("players"),
+        [pid]: {
+          ...p,
+          habitats: {
+            ...p.habitats,
+            [habitat]: { ...p.habitats[habitat], hummingbird: cardId },
+          },
         },
       });
       setPlacingHummingbird(null);
       setPlacingHummingbirdSource(null);
     },
-    [placingHummingbird, placingHummingbirdSource],
+    [placingHummingbird, placingHummingbirdSource, pid],
   );
 
   const cancelPlaceHummingbird = useCallback(() => {
@@ -578,72 +712,111 @@ function Game() {
     cancelPlaceHummingbird();
   }, [cancelPlaceHummingbird]);
 
-  const discardHummingbird = useMutation(({ storage }, habitat: HabitatType) => {
-    const p = storage.get("player");
-    const hbId = p.habitats[habitat].hummingbird;
-    if (hbId == null) return;
-    const discard = storage.get("hummingbirdDiscard");
-    storage.set("hummingbirdDiscard", [...discard, hbId]);
-    storage.set("player", {
-      ...p,
-      habitats: { ...p.habitats, [habitat]: { ...p.habitats[habitat], hummingbird: null } },
-    });
-  }, []);
-
-  const moveHummingbird = useMutation(({ storage }, group: HummingbirdGroup, delta: number) => {
-    const p = storage.get("player");
-    storage.set("player", {
-      ...p,
-      hummingbirdTrack: { ...p.hummingbirdTrack, [group]: p.hummingbirdTrack[group] + delta },
-    });
-  }, []);
-
-  const addBirdToHand = useMutation(({ storage }, birdId: number) => {
-    const discard = storage.get("birdDiscard");
-    if (!discard.includes(birdId)) return;
-    storage.set("birdDiscard", discard.filter((id: number) => id !== birdId));
-    const p = storage.get("player");
-    storage.set("player", { ...p, birdHand: [...p.birdHand, birdId] });
-  }, []);
-
-  const addBonusToHand = useMutation(({ storage }, bonusId: number) => {
-    const discard = storage.get("bonusDiscard");
-    if (!discard.includes(bonusId)) return;
-    storage.set("bonusDiscard", discard.filter((id: number) => id !== bonusId));
-    const p = storage.get("player");
-    storage.set("player", { ...p, bonusHand: [...p.bonusHand, bonusId] });
-  }, []);
-
-  const onNectarChange = useMutation(({ storage }, habitat: HabitatType, delta: number) => {
-    const p = storage.get("player");
-    const current = p.habitats[habitat].spentNectar;
-    const next = Math.max(0, current + delta);
-    if (next === current) return;
-    storage.set("player", {
-      ...p,
-      habitats: { ...p.habitats, [habitat]: { ...p.habitats[habitat], spentNectar: next } },
-    });
-  }, []);
-
-  const onReturnUsedCube = useMutation(({ storage }, habitat: HabitatType | "playABird") => {
-    const p = storage.get("player");
-    if (habitat === "playABird") {
-      if (p.playABirdCubes <= 0) return;
-      storage.set("player", {
-        ...p,
-        actionCubes: p.actionCubes + 1,
-        playABirdCubes: p.playABirdCubes - 1,
+  const discardHummingbird = useMutation(
+    ({ storage }, habitat: HabitatType) => {
+      const p = storage.get("players")[pid];
+      const hbId = p.habitats[habitat].hummingbird;
+      if (hbId == null) return;
+      const discard = storage.get("hummingbirdDiscard");
+      storage.set("hummingbirdDiscard", [...discard, hbId]);
+      storage.set("players", {
+        ...storage.get("players"),
+        [pid]: {
+          ...p,
+          habitats: { ...p.habitats, [habitat]: { ...p.habitats[habitat], hummingbird: null } },
+        },
       });
-      return;
-    }
-    const h = p.habitats[habitat];
-    if (h.actionCubes <= 0) return;
-    storage.set("player", {
-      ...p,
-      actionCubes: p.actionCubes + 1,
-      habitats: { ...p.habitats, [habitat]: { ...h, actionCubes: h.actionCubes - 1 } },
-    });
-  }, []);
+    },
+    [pid],
+  );
+
+  const moveHummingbird = useMutation(
+    ({ storage }, group: HummingbirdGroup, delta: number) => {
+      const p = storage.get("players")[pid];
+      storage.set("players", {
+        ...storage.get("players"),
+        [pid]: {
+          ...p,
+          hummingbirdTrack: { ...p.hummingbirdTrack, [group]: p.hummingbirdTrack[group] + delta },
+        },
+      });
+    },
+    [pid],
+  );
+
+  const addBirdToHand = useMutation(
+    ({ storage }, birdId: number) => {
+      const discard = storage.get("birdDiscard");
+      if (!discard.includes(birdId)) return;
+      storage.set(
+        "birdDiscard",
+        discard.filter((id: number) => id !== birdId),
+      );
+      const p = storage.get("players")[pid];
+      storage.set("players", { ...storage.get("players"), [pid]: { ...p, birdHand: [...p.birdHand, birdId] } });
+    },
+    [pid],
+  );
+
+  const addBonusToHand = useMutation(
+    ({ storage }, bonusId: number) => {
+      const discard = storage.get("bonusDiscard");
+      if (!discard.includes(bonusId)) return;
+      storage.set(
+        "bonusDiscard",
+        discard.filter((id: number) => id !== bonusId),
+      );
+      const p = storage.get("players")[pid];
+      storage.set("players", { ...storage.get("players"), [pid]: { ...p, bonusHand: [...p.bonusHand, bonusId] } });
+    },
+    [pid],
+  );
+
+  const onNectarChange = useMutation(
+    ({ storage }, habitat: HabitatType, delta: number) => {
+      const p = storage.get("players")[pid];
+      const current = p.habitats[habitat].spentNectar;
+      const next = Math.max(0, current + delta);
+      if (next === current) return;
+      storage.set("players", {
+        ...storage.get("players"),
+        [pid]: {
+          ...p,
+          habitats: { ...p.habitats, [habitat]: { ...p.habitats[habitat], spentNectar: next } },
+        },
+      });
+    },
+    [pid],
+  );
+
+  const onReturnUsedCube = useMutation(
+    ({ storage }, habitat: HabitatType | "playABird") => {
+      const p = storage.get("players")[pid];
+      if (habitat === "playABird") {
+        if (p.playABirdCubes <= 0) return;
+        storage.set("players", {
+          ...storage.get("players"),
+          [pid]: {
+            ...p,
+            actionCubes: p.actionCubes + 1,
+            playABirdCubes: p.playABirdCubes - 1,
+          },
+        });
+        return;
+      }
+      const h = p.habitats[habitat];
+      if (h.actionCubes <= 0) return;
+      storage.set("players", {
+        ...storage.get("players"),
+        [pid]: {
+          ...p,
+          actionCubes: p.actionCubes + 1,
+          habitats: { ...p.habitats, [habitat]: { ...h, actionCubes: h.actionCubes - 1 } },
+        },
+      });
+    },
+    [pid],
+  );
 
   const onRoundEndReroll = useMutation(({ storage }) => {
     storage.set("roundEndGoalIds", shuffle(allGoalIds).slice(0, 4));
@@ -653,29 +826,39 @@ function Game() {
     );
   }, []);
 
-  const onRoundEndPlaceCube = useMutation(({ storage }, round: number, placement: number) => {
-    const p = storage.get("player");
-    if (p.actionCubes <= 0) return;
-    storage.set("player", { ...p, actionCubes: p.actionCubes - 1 });
-    const spots = storage.get("roundEndSpots");
-    const newSpots = spots.map((r: RoundEndSpot[]) => r.map((s: RoundEndSpot) => ({ ...s, cubeColors: [...s.cubeColors] })));
-    newSpots[round][placement].cubeColors.push(p.cubeColor);
-    storage.set("roundEndSpots", newSpots);
-    setPlacingCube(false);
-  }, []);
+  const onRoundEndPlaceCube = useMutation(
+    ({ storage }, round: number, placement: number) => {
+      const p = storage.get("players")[pid];
+      if (p.actionCubes <= 0) return;
+      storage.set("players", { ...storage.get("players"), [pid]: { ...p, actionCubes: p.actionCubes - 1 } });
+      const spots = storage.get("roundEndSpots");
+      const newSpots = spots.map((r: RoundEndSpot[]) =>
+        r.map((s: RoundEndSpot) => ({ ...s, cubeColors: [...s.cubeColors] })),
+      );
+      newSpots[round][placement].cubeColors.push(p.cubeColor);
+      storage.set("roundEndSpots", newSpots);
+      setPlacingCube(false);
+    },
+    [pid],
+  );
 
-  const onRoundEndRemoveCube = useMutation(({ storage }, round: number, placement: number, cubeIndex: number) => {
-    const spots = storage.get("roundEndSpots");
-    const color = spots[round]?.[placement]?.cubeColors[cubeIndex];
-    if (!color) return;
-    const p = storage.get("player");
-    if (color === p.cubeColor) {
-      storage.set("player", { ...p, actionCubes: p.actionCubes + 1 });
-    }
-    const newSpots = spots.map((r: RoundEndSpot[]) => r.map((s: RoundEndSpot) => ({ ...s, cubeColors: [...s.cubeColors] })));
-    newSpots[round][placement].cubeColors.splice(cubeIndex, 1);
-    storage.set("roundEndSpots", newSpots);
-  }, []);
+  const onRoundEndRemoveCube = useMutation(
+    ({ storage }, round: number, placement: number, cubeIndex: number) => {
+      const spots = storage.get("roundEndSpots");
+      const color = spots[round]?.[placement]?.cubeColors[cubeIndex];
+      if (!color) return;
+      const p = storage.get("players")[pid];
+      if (color === p.cubeColor) {
+        storage.set("players", { ...storage.get("players"), [pid]: { ...p, actionCubes: p.actionCubes + 1 } });
+      }
+      const newSpots = spots.map((r: RoundEndSpot[]) =>
+        r.map((s: RoundEndSpot) => ({ ...s, cubeColors: [...s.cubeColors] })),
+      );
+      newSpots[round][placement].cubeColors.splice(cubeIndex, 1);
+      storage.set("roundEndSpots", newSpots);
+    },
+    [pid],
+  );
 
   const shuffleBirdDiscard = useMutation(({ storage }) => {
     storage.set("birdDiscard", shuffle([...storage.get("birdDiscard")]));
@@ -736,48 +919,79 @@ function Game() {
     >
       {/* ── Left side: game board row + card hand ── */}
       <div className="flex-1 flex flex-col py-2 px-5 overflow-hidden min-w-0">
+        {/* Player tabs */}
+        <div className="flex items-center gap-1 mb-1">
+          {playerNames.map((name) => {
+            const p = allPlayers![name];
+            const isActive = name === viewingPlayerId;
+            const isSelf = name === currentPlayerId;
+            return (
+              <button
+                key={name}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setViewingPlayerId(name);
+                }}
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-t-lg text-sm font-semibold transition-all cursor-pointer ${
+                  isActive ? "bg-white/20 text-white" : "bg-white/5 text-white/50 hover:bg-white/10 hover:text-white/70"
+                }`}
+              >
+                <div className="w-3 h-3 rounded-full border border-white/40" style={{ backgroundColor: p.cubeColor }} />
+                <span>{p.name}</span>
+                {isSelf && <span className="text-white/30 text-xs">(you)</span>}
+              </button>
+            );
+          })}
+        </div>
+
         {/* Game board + side column row */}
         <div className="flex items-start gap-4">
           <GameBoard
-            player={player}
-            placingBird={placingBird}
-            onPlaceBird={playBirdToHabitat}
-            tuckingBird={tuckingBird}
-            onTuckBird={tuckBirdBehind}
-            layingEggs={layingEggs}
-            onLayEgg={layEggOnBird}
-            onRemoveEgg={removeEggFromBird}
-            cachingFood={cachingFood}
-            onCacheFood={cacheFoodOnBird}
-            onViewTucked={(habitat, birdIndex) => setViewingTucked({ habitat, birdIndex })}
-            migratingBird={migratingBird}
-            onMigrate={startMigrate}
-            onCompleteMigrate={completeMigrate}
-            onReturnToHand={returnPlayedBirdToHand}
-            onDiscardPlayed={discardPlayedBird}
-            placingHummingbird={placingHummingbird}
-            onPlaceHummingbird={placeHummingbird}
-            onDiscardHummingbird={discardHummingbird}
-            onNectarChange={onNectarChange}
-            onUseFood={removeFood}
-            onStartCache={(food) => setCachingFood(food)}
-            placingCube={placingCube}
-            onPlaceCubeToggle={() => setPlacingCube((prev) => !prev)}
-            onPlaceCube={placeActionCube}
-            onCubeClick={(habitat: HabitatType, e: React.MouseEvent) => handleCubeClick(habitat, e.shiftKey)}
-            onReturnUsedCube={onReturnUsedCube}
+            player={viewedPlayer}
+            readOnly={isViewingOther}
+            placingBird={isViewingOther ? null : placingBird}
+            onPlaceBird={isViewingOther ? undefined : playBirdToHabitat}
+            tuckingBird={isViewingOther ? null : tuckingBird}
+            onTuckBird={isViewingOther ? undefined : tuckBirdBehind}
+            layingEggs={isViewingOther ? false : layingEggs}
+            onLayEgg={isViewingOther ? undefined : layEggOnBird}
+            onRemoveEgg={isViewingOther ? undefined : removeEggFromBird}
+            cachingFood={isViewingOther ? null : cachingFood}
+            onCacheFood={isViewingOther ? undefined : cacheFoodOnBird}
+            onViewTucked={isViewingOther ? undefined : (habitat, birdIndex) => setViewingTucked({ habitat, birdIndex })}
+            migratingBird={isViewingOther ? null : migratingBird}
+            onMigrate={isViewingOther ? undefined : startMigrate}
+            onCompleteMigrate={isViewingOther ? undefined : completeMigrate}
+            onReturnToHand={isViewingOther ? undefined : returnPlayedBirdToHand}
+            onDiscardPlayed={isViewingOther ? undefined : discardPlayedBird}
+            placingHummingbird={isViewingOther ? null : placingHummingbird}
+            onPlaceHummingbird={isViewingOther ? undefined : placeHummingbird}
+            onDiscardHummingbird={isViewingOther ? undefined : discardHummingbird}
+            onNectarChange={isViewingOther ? undefined : onNectarChange}
+            onUseFood={isViewingOther ? () => {} : removeFood}
+            onStartCache={isViewingOther ? () => {} : (food) => setCachingFood(food)}
+            placingCube={isViewingOther ? false : placingCube}
+            onPlaceCubeToggle={isViewingOther ? undefined : () => setPlacingCube((prev) => !prev)}
+            onPlaceCube={isViewingOther ? undefined : placeActionCube}
+            onCubeClick={
+              isViewingOther
+                ? undefined
+                : (habitat: HabitatType, e: React.MouseEvent) => handleCubeClick(habitat, e.shiftKey)
+            }
+            onReturnUsedCube={isViewingOther ? undefined : onReturnUsedCube}
           />
 
           {/* Bird feeder + Food piles + Eggs + Hummingbird track */}
           <div className="flex flex-col items-stretch gap-2 self-start">
-            <BirdFeeder size={186} />
+            <BirdFeeder size={186} disabled={isViewingOther} />
             {/* Food pile buttons */}
             <div className="grid grid-cols-3 gap-1 justify-items-center px-2 py-1">
               {(["invertebrate", "seed", "fruit", "fish", "rodent", "nectar"] as const).map((food) => (
                 <button
                   key={food}
-                  className="flex flex-col items-center gap-0.5 group cursor-pointer"
-                  onClick={() => gainFood(food)}
+                  className={`flex flex-col items-center gap-0.5 group ${isViewingOther ? "opacity-40 cursor-default" : "cursor-pointer"}`}
+                  onClick={isViewingOther ? undefined : () => gainFood(food)}
+                  disabled={isViewingOther}
                 >
                   <div
                     className="relative rounded-full flex items-center justify-center transition-all group-hover:ring-2 group-hover:ring-yellow-400 group-hover:shadow-[0_0_12px_rgba(250,204,21,0.6)]"
@@ -804,11 +1018,16 @@ function Game() {
             </div>
             {/* Egg pile button */}
             <button
-              className="flex flex-col items-center gap-1 group cursor-pointer self-center"
-              onClick={(e) => {
-                e.stopPropagation();
-                setLayingEggs(!layingEggs);
-              }}
+              className={`flex flex-col items-center gap-1 group self-center ${isViewingOther ? "opacity-40 cursor-default" : "cursor-pointer"}`}
+              disabled={isViewingOther}
+              onClick={
+                isViewingOther
+                  ? undefined
+                  : (e) => {
+                      e.stopPropagation();
+                      setLayingEggs(!layingEggs);
+                    }
+              }
             >
               <div
                 className={`relative rounded-full flex items-center justify-center transition-shadow ${
@@ -835,7 +1054,7 @@ function Game() {
                 {layingEggs ? "CANCEL" : "LAY EGGS"}
               </span>
             </button>
-            <HummingbirdTrack player={player} onMove={moveHummingbird} />
+            <HummingbirdTrack player={viewedPlayer} onMove={isViewingOther ? undefined : moveHummingbird} />
           </div>
 
           {/* Card decks + discard piles + end of round goals */}
@@ -848,6 +1067,7 @@ function Game() {
                     width={DECK_BONUS_WIDTH}
                     height={DECK_CARD_HEIGHT}
                     onDraw={drawBonusCard}
+                    disabled={isViewingOther}
                   />
                   <BonusDiscardPile
                     cards={bonusDiscard.map(getBonus)}
@@ -857,7 +1077,7 @@ function Game() {
                   />
                 </div>
                 <div className="flex items-start gap-4">
-                  <BirdDeck count={deck.length} width={DECK_CARD_WIDTH} height={DECK_CARD_HEIGHT} onDraw={drawCard} />
+                  <BirdDeck count={deck.length} width={DECK_CARD_WIDTH} height={DECK_CARD_HEIGHT} onDraw={drawCard} disabled={isViewingOther} />
                   <BirdDiscardPile
                     cards={birdDiscard.map(getBird)}
                     width={DECK_CARD_WIDTH}
@@ -883,6 +1103,7 @@ function Game() {
                 onDiscard={trayDiscard}
                 onRefill={trayRefill}
                 onReset={trayReset}
+                disabled={isViewingOther}
               />
               <div className="flex flex-col items-center gap-3 pt-1">
                 <HummingbirdDeck
@@ -890,6 +1111,7 @@ function Game() {
                   width={DECK_HUMMINGBIRD_WIDTH}
                   height={DECK_HUMMINGBIRD_HEIGHT}
                   onDraw={drawHummingbird}
+                  disabled={isViewingOther}
                 />
                 <HummingbirdDiscardPile
                   cards={hummingbirdDiscard.map(getHummingbird)}
@@ -905,6 +1127,7 @@ function Game() {
               onSelect={hummingbirdTraySelect}
               onRefill={hummingbirdTrayRefill}
               onReset={hummingbirdTrayReset}
+              disabled={isViewingOther}
             />
           </div>
         </div>
@@ -912,7 +1135,30 @@ function Game() {
         {/* ── Hand area (below game board) ── */}
         <div className="flex items-end" style={{ minHeight: HAND_AREA_HEIGHT }}>
           <div className="flex-1 min-w-0">
-            {dockItems.length > 0 && <CardDock items={dockItems} baseHeight={HAND_CARD_HEIGHT} maxScale={1.8} />}
+            {isViewingOther ? (
+              <div className="flex items-end gap-1 px-2 pb-1">
+                {viewedPlayer.bonusHand.map((_id: number, i: number) => (
+                  <img
+                    key={`bonus-back-${i}`}
+                    src={bonusBackUrl}
+                    alt="bonus card"
+                    className="rounded-lg shadow-md"
+                    style={{ height: HAND_CARD_HEIGHT, width: BONUS_CARD_WIDTH }}
+                  />
+                ))}
+                {viewedPlayer.birdHand.map((_id: number, i: number) => (
+                  <img
+                    key={`bird-back-${i}`}
+                    src={birdBackUrl}
+                    alt="bird card"
+                    className="rounded-lg shadow-md"
+                    style={{ height: HAND_CARD_HEIGHT, width: HAND_CARD_WIDTH }}
+                  />
+                ))}
+              </div>
+            ) : (
+              dockItems.length > 0 && <CardDock items={dockItems} baseHeight={HAND_CARD_HEIGHT} maxScale={1.8} />
+            )}
           </div>
         </div>
       </div>

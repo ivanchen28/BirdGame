@@ -6,9 +6,15 @@ const client = createClient({
   publicApiKey: "pk_prod_YrPRZ9Jq9G6RnsNXsozxohxv-knwkFi02iqrbxoNUCZkXZifXE0ER9RKNqBUhfEw",
 });
 
-type Presence = Record<string, never>;
+type Presence = {
+  name: string | null;
+  color: string | null;
+};
+
+const initialPresence: Presence = { name: null, color: null };
 
 type Storage = {
+  gamePhase: "lobby" | "playing";
   birdDeck: number[];
   birdTray: (number | null)[];
   bonusDeck: number[];
@@ -21,8 +27,14 @@ type Storage = {
   roundEndSpots: RoundEndSpot[][];
   feederDice: Die[];
   takenDice: Die[];
-  player: Player;
+  players: Record<string, Player>;
   initialized: boolean;
 };
 
-export const { RoomProvider, useStorage, useMutation } = createRoomContext<Presence, Storage>(client);
+export const { RoomProvider, useStorage, useMutation, useUpdateMyPresence, useOthers, useSelf } = createRoomContext<
+  Presence,
+  Storage
+>(client);
+
+export { initialPresence };
+export type { Presence };
