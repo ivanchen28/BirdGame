@@ -128,6 +128,7 @@ function App() {
 function GameLoader({ playerName, onJoin }: { playerName: string | null; onJoin: (name: string) => void }) {
   const isReady = useStorage((root) => root.initialized);
   const gamePhase = useStorage((root) => root.gamePhase);
+  const [enteredGame, setEnteredGame] = useState(false);
 
   if (isReady == null) {
     return (
@@ -137,15 +138,11 @@ function GameLoader({ playerName, onJoin }: { playerName: string | null; onJoin:
     );
   }
 
-  if (gamePhase === "lobby") {
-    return <Lobby playerName={playerName} onJoin={onJoin} />;
+  if (gamePhase === "playing" && enteredGame && playerName) {
+    return <Game currentPlayerId={playerName} />;
   }
 
-  if (!playerName) {
-    return <Lobby playerName={playerName} onJoin={onJoin} />;
-  }
-
-  return <Game currentPlayerId={playerName} />;
+  return <Lobby playerName={playerName} onJoin={onJoin} onEnterGame={() => setEnteredGame(true)} />;
 }
 
 function Game({ currentPlayerId }: { currentPlayerId: string }) {

@@ -23,12 +23,23 @@ const COLOR_OPTIONS = [
   { name: "Orange", value: "orange" },
 ];
 
-export function Lobby({ playerName, onJoin }: { playerName: string | null; onJoin: (name: string) => void }) {
+export function Lobby({
+  playerName,
+  onJoin,
+  onEnterGame,
+}: {
+  playerName: string | null;
+  onJoin: (name: string) => void;
+  onEnterGame?: () => void;
+}) {
   const [nameInput, setNameInput] = useState(playerName ?? "");
   const [selectedColor, setSelectedColor] = useState("white");
   const players = useStorage((root) => root.players) as Record<string, Player> | null;
+  const gamePhase = useStorage((root) => root.gamePhase);
   const updateMyPresence = useUpdateMyPresence();
   const others = useOthers();
+
+  const gameInProgress = gamePhase === "playing";
 
   // Broadcast our identity as presence
   const joined = playerName != null && players != null && playerName in players;
@@ -153,7 +164,37 @@ export function Lobby({ playerName, onJoin }: { playerName: string | null; onJoi
           </div>
         )}
 
-        {!joined ? (
+        {gameInProgress ? (
+          <>
+            {/* Game in progress */}
+            <div className="text-yellow-300 text-sm font-semibold">A game is currently in progress.</div>
+            <div className="flex gap-3">
+              {joined && (
+                <button
+                  onClick={() => onEnterGame?.()}
+                  className="px-6 py-3 rounded-xl text-white font-semibold cursor-pointer transition-all hover:scale-105 hover:ring-2 hover:ring-yellow-400 bg-emerald-600/60 border-2 border-emerald-400/50"
+                >
+                  Enter Game
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  if (confirm("Reset the entire game? All players will be removed.")) {
+                    resetGame();
+                    onJoin("");
+                  }
+                }}
+                className="px-6 py-3 rounded-xl text-red-300/70 font-semibold cursor-pointer transition-all hover:scale-105 hover:text-red-300"
+                style={{
+                  background: "rgba(255,255,255,0.08)",
+                  border: "2px solid rgba(255,255,255,0.15)",
+                }}
+              >
+                Reset Game
+              </button>
+            </div>
+          </>
+        ) : !joined ? (
           <>
             {/* Name input */}
             <div className="w-full flex flex-col gap-1">
