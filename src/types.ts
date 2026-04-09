@@ -94,9 +94,9 @@ export interface RoundEndGoal {
 }
 
 /** A single placement spot on the round end goal board. Tracks which player colors have cubes here. */
-export interface RoundEndSpot {
+export type RoundEndSpot = {
   cubeColors: string[];
-}
+};
 
 /** State for the entire round end goal board: 4 rounds × 4 placement spots, plus the goals. */
 export interface RoundEndGoalBoardState {
@@ -131,12 +131,12 @@ export function toPlayedBird(bird: BirdCard): PlayedBirdCard {
 
 // ── Played Bird State (ID-based, for game state storage) ──
 
-export interface PlayedBirdState {
+export type PlayedBirdState = {
   id: number;
   eggsLaid: number;
   tuckedCardIds: number[];
   cachedFood: FoodSupply;
-}
+};
 
 export function toPlayedBirdState(birdId: number): PlayedBirdState {
   return {
@@ -152,14 +152,14 @@ export function toPlayedBirdState(birdId: number): PlayedBirdState {
 export const FoodTypes = ["invertebrate", "seed", "fish", "fruit", "rodent", "nectar"] as const;
 export type FoodType = (typeof FoodTypes)[number];
 
-export interface FoodSupply {
+export type FoodSupply = {
   invertebrate: number;
   seed: number;
   fish: number;
   fruit: number;
   rodent: number;
   nectar: number;
-}
+};
 
 // ── Dice ──
 
@@ -173,12 +173,12 @@ export type DieFace =
   | "seedNectar"
   | "fruitNectar";
 
-export interface Die {
+export type Die = {
   id: number;
   possibleFaces: DieFace[];
   currentFace: DieFace;
   isNectar: boolean;
-}
+};
 
 const BASE_FACES: DieFace[] = ["invertebrateSeed", "invertebrate", "seed", "fish", "rodent", "fruit"];
 const NECTAR_FACES: DieFace[] = ["invertebrateSeed", "invertebrate", "seedNectar", "fish", "rodent", "fruitNectar"];
@@ -205,18 +205,18 @@ export function rollDie(die: Die): Die {
 export const HabitatTypes = ["forest", "grassland", "wetland"] as const;
 export type HabitatType = (typeof HabitatTypes)[number];
 
-export interface Habitat {
+export type Habitat = {
   type: HabitatType;
   birds: PlayedBirdState[];
-  hummingbird?: number;
+  hummingbird: number | null;
   spentNectar: number;
   actionCubes: number;
-  activeCube?: number;
-}
+  activeCube: number | null;
+};
 
 // ── Player ──
 
-export interface Player {
+export type Player = {
   name: string;
   cubeColor: string;
   actionCubes: number;
@@ -227,7 +227,7 @@ export interface Player {
   habitats: Record<HabitatType, Habitat>;
   hummingbirdTrack: Record<HummingbirdGroup, number>;
   hummingbirdTrackPattern: number[];
-}
+};
 
 export function createPlayer(name: string, cubeColor: string): Player {
   return {
@@ -244,26 +244,26 @@ export function createPlayer(name: string, cubeColor: string): Player {
       forest: {
         type: "forest",
         birds: [],
-        hummingbird: undefined,
+        hummingbird: null,
         spentNectar: 0,
         actionCubes: 0,
-        activeCube: undefined,
+        activeCube: null,
       },
       grassland: {
         type: "grassland",
         birds: [],
-        hummingbird: undefined,
+        hummingbird: null,
         spentNectar: 0,
         actionCubes: 0,
-        activeCube: undefined,
+        activeCube: null,
       },
       wetland: {
         type: "wetland",
         birds: [],
-        hummingbird: undefined,
+        hummingbird: null,
         spentNectar: 0,
         actionCubes: 0,
-        activeCube: undefined,
+        activeCube: null,
       },
     },
   };

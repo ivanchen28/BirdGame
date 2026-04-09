@@ -603,7 +603,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                   highlightForPlace || highlightForTuck || highlightForEgg || highlightForCache || highlightForMigrate;
                 // Show action cube on the slot indicated by activeCube (1-5 for bird slots)
                 const activeCubeSlot = player.habitats[h].activeCube;
-                const showCube = activeCubeSlot !== undefined && activeCubeSlot === col + 1;
+                const showCube = activeCubeSlot != null && activeCubeSlot === col + 1;
                 return (
                   <BirdSlot
                     key={`bird-${row}-${col}`}

@@ -1,6 +1,7 @@
 import { ArrowPathIcon } from "@heroicons/react/24/solid";
-import { useCallback, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import feederBg from "../../assets/birdfeeder-background.png";
+import { useMutation, useStorage } from "../liveblocks.config";
 import { createDie, rollDie, type Die } from "../types";
 import { DieDisplay } from "./DieDisplay";
 
@@ -49,10 +50,6 @@ function scatteredPositions(count: number, width: number, height: number, dieSiz
   }));
 }
 
-function createFeederDice(): Die[] {
-  return Array.from({ length: DICE_COUNT }, (_, i) => createDie(i, false));
-}
-
 function initPositions(w: number, h: number): Map<number, { x: number; y: number }> {
   const pos = scatteredPositions(DICE_COUNT, w, h, DIE_SIZE);
   const map = new Map<number, { x: number; y: number }>();
@@ -62,49 +59,60 @@ function initPositions(w: number, h: number): Map<number, { x: number; y: number
 
 export function BirdFeeder({ size = DEFAULT_FEEDER_SIZE, height }: { size?: number; height?: number } = {}) {
   const feederHeight = height ?? Math.round(size);
-  const [feederDice, setFeederDice] = useState<Die[]>(createFeederDice);
-  const [takenDice, setTakenDice] = useState<Die[]>([]);
+  const feederDice = useStorage((root) => root.feederDice)!;
+  const takenDice = useStorage((root) => root.takenDice)!;
   // Stable positions keyed by die id — generated once per reroll
   const positionsRef = useRef(initPositions(size, feederHeight));
+  const prevDiceCountRef = useRef(feederDice.length);
 
-  const reroll = useCallback(() => {
+  // Regenerate positions when a full reroll occurs (dice count jumps back to DICE_COUNT)
+  useEffect(() => {
+    const prev = prevDiceCountRef.current;
+    prevDiceCountRef.current = feederDice.length;
+    if (feederDice.length === DICE_COUNT && prev < DICE_COUNT) {
+      const pos = scatteredPositions(DICE_COUNT, size, feederHeight, DIE_SIZE);
+      const map = new Map<number, { x: number; y: number }>();
+      for (let i = 0; i < DICE_COUNT; i++) map.set(feederDice[i].id, pos[i]);
+      positionsRef.current = map;
+    }
+  }, [feederDice, size, feederHeight]);
+
+  const reroll = useMutation(({ storage }) => {
     const newDice = Array.from({ length: DICE_COUNT }, (_, i) => rollDie(createDie(i, false)));
+    storage.set("feederDice", newDice);
+    storage.set("takenDice", []);
+    // Update local positions
     const pos = scatteredPositions(DICE_COUNT, size, feederHeight, DIE_SIZE);
     const map = new Map<number, { x: number; y: number }>();
-    for (let i = 0; i < DICE_COUNT; i++) map.set(i, pos[i]);
+    for (let i = 0; i < DICE_COUNT; i++) map.set(newDice[i].id, pos[i]);
     positionsRef.current = map;
-    setFeederDice(newDice);
-    setTakenDice([]);
   }, [size, feederHeight]);
 
-  const rerollRef = useRef(reroll);
-  rerollRef.current = reroll;
-
-  const takeDie = useCallback((dieId: number) => {
-    setFeederDice((prev) => {
-      const die = prev.find((d) => d.id === dieId);
-      if (!die) return prev;
-      const remaining = prev.filter((d) => d.id !== dieId);
-      if (remaining.length === 0) {
-        // Last die — auto-reroll, don't add to taken
-        setTimeout(() => rerollRef.current(), 0);
-      } else {
-        setTakenDice((taken) => {
-          if (taken.some((d) => d.id === die.id)) return taken;
-          return [...taken, die];
-        });
+  const takeDie = useMutation(({ storage }, dieId: number) => {
+    const dice = storage.get("feederDice") as Die[];
+    const die = dice.find((d: Die) => d.id === dieId);
+    if (!die) return;
+    const remaining = dice.filter((d: Die) => d.id !== dieId);
+    if (remaining.length === 0) {
+      // Last die — auto-reroll
+      const newDice = Array.from({ length: DICE_COUNT }, (_, i) => rollDie(createDie(i, false)));
+      storage.set("feederDice", newDice);
+      storage.set("takenDice", []);
+    } else {
+      storage.set("feederDice", remaining);
+      const taken = storage.get("takenDice") as Die[];
+      if (!taken.some((d: Die) => d.id === die.id)) {
+        storage.set("takenDice", [...taken, die]);
       }
-      return remaining;
-    });
+    }
   }, []);
 
-  const rerollTakenDie = useCallback((dieId: number) => {
-    setTakenDice((prev) => {
-      const die = prev.find((d) => d.id === dieId);
-      if (!die) return prev;
-      const rerolled = rollDie(die);
-      return prev.map((d) => (d.id === dieId ? rerolled : d));
-    });
+  const rerollTakenDie = useMutation(({ storage }, dieId: number) => {
+    const taken = storage.get("takenDice") as Die[];
+    const die = taken.find((d: Die) => d.id === dieId);
+    if (!die) return;
+    const rerolled = rollDie(die);
+    storage.set("takenDice", taken.map((d: Die) => (d.id === dieId ? rerolled : d)));
   }, []);
 
   return (
