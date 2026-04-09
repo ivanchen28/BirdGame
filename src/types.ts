@@ -129,6 +129,24 @@ export function toPlayedBird(bird: BirdCard): PlayedBirdCard {
   };
 }
 
+// ── Played Bird State (ID-based, for game state storage) ──
+
+export interface PlayedBirdState {
+  id: number;
+  eggsLaid: number;
+  tuckedCardIds: number[];
+  cachedFood: FoodSupply;
+}
+
+export function toPlayedBirdState(birdId: number): PlayedBirdState {
+  return {
+    id: birdId,
+    eggsLaid: 0,
+    tuckedCardIds: [],
+    cachedFood: { invertebrate: 0, seed: 0, fish: 0, fruit: 0, rodent: 0, nectar: 0 },
+  };
+}
+
 // ── Food ──
 
 export const FoodTypes = ["invertebrate", "seed", "fish", "fruit", "rodent", "nectar"] as const;
@@ -189,8 +207,8 @@ export type HabitatType = (typeof HabitatTypes)[number];
 
 export interface Habitat {
   type: HabitatType;
-  birds: PlayedBirdCard[];
-  hummingbird?: HummingbirdCard;
+  birds: PlayedBirdState[];
+  hummingbird?: number;
   spentNectar: number;
   actionCubes: number;
   activeCube?: number;
@@ -203,8 +221,8 @@ export interface Player {
   cubeColor: string;
   actionCubes: number;
   playABirdCubes: number;
-  birdHand: BirdCard[];
-  bonusHand: BonusCard[];
+  birdHand: number[];
+  bonusHand: number[];
   food: FoodSupply;
   habitats: Record<HabitatType, Habitat>;
   hummingbirdTrack: Record<HummingbirdGroup, number>;

@@ -1,8 +1,14 @@
 import { useCallback, useMemo, useState } from "react";
-import birdsData from "../assets/data/birds.json";
-import bonusData from "../assets/data/bonus.json";
-import goalsData from "../assets/data/goals.json";
-import hummingbirdsData from "../assets/data/hummingbirds.json";
+import {
+  allBirdIds,
+  allBonusIds,
+  allGoalIds,
+  allHummingbirdIds,
+  getBird,
+  getBonus,
+  getGoal,
+  getHummingbird,
+} from "./cardLookup";
 import { BirdCardDisplay } from "./components/BirdCardDisplay";
 import { BirdDeck } from "./components/BirdDeck";
 import { BirdDiscardPile } from "./components/BirdDiscardPile";
@@ -24,8 +30,7 @@ import { RoundEndGoalBoard } from "./components/RoundEndGoalBoard";
 import { foodUrl, iconUrl } from "./icons";
 import {
   createPlayer,
-  createRoundEndGoalBoardState,
-  toPlayedBird,
+  toPlayedBirdState,
   type BirdCard,
   type BonusCard,
   type FoodType,
@@ -33,8 +38,7 @@ import {
   type HummingbirdCard,
   type HummingbirdGroup,
   type Player,
-  type RoundEndGoal,
-  type RoundEndGoalBoardState,
+  type RoundEndSpot,
 } from "./types";
 
 const FOOD_DISPLAY_NAMES: Record<FoodType, string> = {
@@ -45,11 +49,6 @@ const FOOD_DISPLAY_NAMES: Record<FoodType, string> = {
   rodent: "RAT",
   nectar: "NECTAR",
 };
-
-const allBirds: BirdCard[] = birdsData as BirdCard[];
-const allBonuses: BonusCard[] = bonusData as BonusCard[];
-const allHummingbirds: HummingbirdCard[] = hummingbirdsData as HummingbirdCard[];
-const allGoals: RoundEndGoal[] = goalsData as RoundEndGoal[];
 
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -74,46 +73,44 @@ const DECK_HUMMINGBIRD_HEIGHT = DECK_CARD_HEIGHT * HUMMINGBIRD_SCALE;
 const DECK_HUMMINGBIRD_WIDTH = DECK_HUMMINGBIRD_HEIGHT * 0.655;
 
 function App() {
-  const [initialDeck] = useState(() => shuffle(allBirds));
+  const [initialDeck] = useState(() => shuffle(allBirdIds));
   const [deck, setDeck] = useState(() => initialDeck.slice(3));
-  const [birdTray, setBirdTray] = useState<(BirdCard | null)[]>(() => initialDeck.slice(0, 3));
-  const [bonusDeck, setBonusDeck] = useState(() => shuffle(allBonuses));
+  const [birdTray, setBirdTray] = useState<(number | null)[]>(() => initialDeck.slice(0, 3));
+  const [bonusDeck, setBonusDeck] = useState(() => shuffle(allBonusIds));
   const [player, setPlayer] = useState<Player>(() => createPlayer("Player 1", "white"));
-  const [birdDiscard, setBirdDiscard] = useState<BirdCard[]>([]);
-  const [bonusDiscard, setBonusDiscard] = useState<BonusCard[]>([]);
-  const [initialHummingbirdDeck] = useState(() => shuffle(allHummingbirds));
+  const [birdDiscard, setBirdDiscard] = useState<number[]>([]);
+  const [bonusDiscard, setBonusDiscard] = useState<number[]>([]);
+  const [initialHummingbirdDeck] = useState(() => shuffle(allHummingbirdIds));
   const [hummingbirdDeck, setHummingbirdDeck] = useState(() => initialHummingbirdDeck.slice(5));
-  const [hummingbirdTray, setHummingbirdTray] = useState<(HummingbirdCard | null)[]>(() =>
-    initialHummingbirdDeck.slice(0, 5),
-  );
-  const [hummingbirdDiscard, setHummingbirdDiscard] = useState<HummingbirdCard[]>([]);
-  const [placingHummingbird, setPlacingHummingbird] = useState<HummingbirdCard | null>(null);
+  const [hummingbirdTray, setHummingbirdTray] = useState<(number | null)[]>(() => initialHummingbirdDeck.slice(0, 5));
+  const [hummingbirdDiscard, setHummingbirdDiscard] = useState<number[]>([]);
+  const [placingHummingbird, setPlacingHummingbird] = useState<number | null>(null);
   const [placingHummingbirdSource, setPlacingHummingbirdSource] = useState<"deck" | number | null>(null);
   const [discardModal, setDiscardModal] = useState<"bird" | "bonus" | "hummingbird" | null>(null);
-  const [placingBird, setPlacingBird] = useState<BirdCard | null>(null);
-  const [tuckingBird, setTuckingBird] = useState<BirdCard | null>(null);
+  const [placingBird, setPlacingBird] = useState<number | null>(null);
+  const [tuckingBird, setTuckingBird] = useState<number | null>(null);
   const [layingEggs, setLayingEggs] = useState(false);
   const [cachingFood, setCachingFood] = useState<FoodType | null>(null);
   const [viewingTucked, setViewingTucked] = useState<{ habitat: HabitatType; birdIndex: number } | null>(null);
   const [migratingBird, setMigratingBird] = useState<{ habitat: HabitatType; birdIndex: number } | null>(null);
   const [placingCube, setPlacingCube] = useState(false);
-  const [roundEndBoard, setRoundEndBoard] = useState<RoundEndGoalBoardState>(() => {
-    const shuffled = shuffle(allGoals);
-    return createRoundEndGoalBoardState(shuffled.slice(0, 4));
-  });
+  const [roundEndGoalIds, setRoundEndGoalIds] = useState<number[]>(() => shuffle(allGoalIds).slice(0, 4));
+  const [roundEndSpots, setRoundEndSpots] = useState<RoundEndSpot[][]>(() =>
+    Array.from({ length: 4 }, () => Array.from({ length: 4 }, () => ({ cubeColors: [] }))),
+  );
 
   const playBirdToHabitat = useCallback(
     (habitat: HabitatType) => {
       if (!placingBird) return;
-      const bird = placingBird;
+      const birdId = placingBird;
       setPlayer((prev) => ({
         ...prev,
-        birdHand: prev.birdHand.filter((b) => b.id !== bird.id),
+        birdHand: prev.birdHand.filter((id) => id !== birdId),
         habitats: {
           ...prev.habitats,
           [habitat]: {
             ...prev.habitats[habitat],
-            birds: [...prev.habitats[habitat].birds, toPlayedBird(bird)],
+            birds: [...prev.habitats[habitat].birds, toPlayedBirdState(birdId)],
           },
         },
       }));
@@ -125,17 +122,17 @@ function App() {
   const tuckBirdBehind = useCallback(
     (habitat: HabitatType, birdIndex: number) => {
       if (!tuckingBird) return;
-      const card = tuckingBird;
+      const cardId = tuckingBird;
       setPlayer((prev) => {
         const birds = [...prev.habitats[habitat].birds];
         const target = birds[birdIndex];
         birds[birdIndex] = {
           ...target,
-          tuckedCards: [...target.tuckedCards, card],
+          tuckedCardIds: [...target.tuckedCardIds, cardId],
         };
         return {
           ...prev,
-          birdHand: prev.birdHand.filter((b) => b.id !== card.id),
+          birdHand: prev.birdHand.filter((id) => id !== cardId),
           habitats: {
             ...prev.habitats,
             [habitat]: {
@@ -227,22 +224,21 @@ function App() {
       setPlayer((prev) => {
         const birds = [...prev.habitats[viewingTucked.habitat].birds];
         const target = birds[viewingTucked.birdIndex];
-        const card = target.tuckedCards.find((c) => c.id === cardId);
-        if (!card) return prev;
+        if (!target.tuckedCardIds.includes(cardId)) return prev;
         birds[viewingTucked.birdIndex] = {
           ...target,
-          tuckedCards: target.tuckedCards.filter((c) => c.id !== cardId),
+          tuckedCardIds: target.tuckedCardIds.filter((id) => id !== cardId),
         };
         return {
           ...prev,
-          birdHand: [...prev.birdHand, card],
+          birdHand: [...prev.birdHand, cardId],
           habitats: {
             ...prev.habitats,
             [viewingTucked.habitat]: { ...prev.habitats[viewingTucked.habitat], birds },
           },
         };
       });
-      const remaining = player.habitats[viewingTucked.habitat].birds[viewingTucked.birdIndex].tuckedCards.length;
+      const remaining = player.habitats[viewingTucked.habitat].birds[viewingTucked.birdIndex].tuckedCardIds.length;
       if (remaining <= 1) setViewingTucked(null);
     },
     [viewingTucked, player.habitats],
@@ -358,23 +354,22 @@ function App() {
   // Return a played bird to hand, discarding all resources on it
   const returnPlayedBirdToHand = useCallback(
     (habitat: HabitatType, birdIndex: number) => {
-      const bird = player.habitats[habitat].birds[birdIndex];
-      if (!bird) return;
-      const { eggsLaid: _, tuckedCards, cachedFood: __, ...baseBird } = bird;
+      const birdState = player.habitats[habitat].birds[birdIndex];
+      if (!birdState) return;
       setPlayer((prev) => {
         const birds = [...prev.habitats[habitat].birds];
         birds.splice(birdIndex, 1);
         return {
           ...prev,
-          birdHand: [...prev.birdHand, baseBird as BirdCard],
+          birdHand: [...prev.birdHand, birdState.id],
           habitats: {
             ...prev.habitats,
             [habitat]: { ...prev.habitats[habitat], birds },
           },
         };
       });
-      if (tuckedCards.length > 0) {
-        setBirdDiscard((prev) => [...prev, ...tuckedCards]);
+      if (birdState.tuckedCardIds.length > 0) {
+        setBirdDiscard((prev) => [...prev, ...birdState.tuckedCardIds]);
       }
     },
     [player.habitats],
@@ -383,9 +378,8 @@ function App() {
   // Discard a played bird and all its resources
   const discardPlayedBird = useCallback(
     (habitat: HabitatType, birdIndex: number) => {
-      const bird = player.habitats[habitat].birds[birdIndex];
-      if (!bird) return;
-      const { eggsLaid: _, tuckedCards, cachedFood: __, ...baseBird } = bird;
+      const birdState = player.habitats[habitat].birds[birdIndex];
+      if (!birdState) return;
       setPlayer((prev) => {
         const birds = [...prev.habitats[habitat].birds];
         birds.splice(birdIndex, 1);
@@ -397,43 +391,41 @@ function App() {
           },
         };
       });
-      setBirdDiscard((prev) => [...prev, baseBird as BirdCard, ...tuckedCards]);
+      setBirdDiscard((prev) => [...prev, birdState.id, ...birdState.tuckedCardIds]);
     },
     [player.habitats],
   );
 
   const discardBird = useCallback(
     (birdId: number) => {
-      const bird = player.birdHand.find((b) => b.id === birdId);
-      if (!bird) return;
-      setPlayer((prev) => ({ ...prev, birdHand: prev.birdHand.filter((b) => b.id !== birdId) }));
-      setBirdDiscard((prev) => [...prev, bird]);
+      if (!player.birdHand.includes(birdId)) return;
+      setPlayer((prev) => ({ ...prev, birdHand: prev.birdHand.filter((id) => id !== birdId) }));
+      setBirdDiscard((prev) => [...prev, birdId]);
     },
     [player.birdHand],
   );
 
   const discardBonus = useCallback(
     (bonusId: number) => {
-      const bonus = player.bonusHand.find((b) => b.id === bonusId);
-      if (!bonus) return;
-      setPlayer((prev) => ({ ...prev, bonusHand: prev.bonusHand.filter((b) => b.id !== bonusId) }));
-      setBonusDiscard((prev) => [...prev, bonus]);
+      if (!player.bonusHand.includes(bonusId)) return;
+      setPlayer((prev) => ({ ...prev, bonusHand: prev.bonusHand.filter((id) => id !== bonusId) }));
+      setBonusDiscard((prev) => [...prev, bonusId]);
     },
     [player.bonusHand],
   );
 
   const drawCard = () => {
     if (deck.length === 0) return;
-    const card = deck[0];
-    setPlayer((prev) => ({ ...prev, birdHand: [...prev.birdHand, card] }));
+    const cardId = deck[0];
+    setPlayer((prev) => ({ ...prev, birdHand: [...prev.birdHand, cardId] }));
     setDeck((prev) => prev.slice(1));
   };
 
   const trayAddToHand = useCallback(
     (index: number) => {
-      const card = birdTray[index];
-      if (!card) return;
-      setPlayer((prev) => ({ ...prev, birdHand: [...prev.birdHand, card] }));
+      const cardId = birdTray[index];
+      if (cardId == null) return;
+      setPlayer((prev) => ({ ...prev, birdHand: [...prev.birdHand, cardId] }));
       setBirdTray((prev) => {
         const next = [...prev];
         next[index] = null;
@@ -445,9 +437,9 @@ function App() {
 
   const trayDiscard = useCallback(
     (index: number) => {
-      const card = birdTray[index];
-      if (!card) return;
-      setBirdDiscard((prev) => [...prev, card]);
+      const cardId = birdTray[index];
+      if (cardId == null) return;
+      setBirdDiscard((prev) => [...prev, cardId]);
       setBirdTray((prev) => {
         const next = [...prev];
         next[index] = null;
@@ -474,13 +466,13 @@ function App() {
 
   const trayReset = useCallback(() => {
     // Discard all remaining tray cards, then refill all slots
-    const discarded = birdTray.filter((c): c is BirdCard => c !== null);
+    const discarded = birdTray.filter((c): c is number => c !== null);
     if (discarded.length > 0) {
       setBirdDiscard((d) => [...d, ...discarded]);
     }
     const count = birdTray.length;
     const available = Math.min(count, deck.length);
-    const next: (BirdCard | null)[] = [];
+    const next: (number | null)[] = [];
     for (let i = 0; i < count; i++) {
       next.push(i < available ? deck[i] : null);
     }
@@ -490,23 +482,23 @@ function App() {
 
   const drawBonusCard = () => {
     if (bonusDeck.length === 0) return;
-    const card = bonusDeck[0];
-    setPlayer((prev) => ({ ...prev, bonusHand: [...prev.bonusHand, card] }));
+    const cardId = bonusDeck[0];
+    setPlayer((prev) => ({ ...prev, bonusHand: [...prev.bonusHand, cardId] }));
     setBonusDeck((prev) => prev.slice(1));
   };
 
   const drawHummingbird = () => {
     if (hummingbirdDeck.length === 0) return;
-    const card = hummingbirdDeck[0];
-    setPlacingHummingbird(card);
+    const cardId = hummingbirdDeck[0];
+    setPlacingHummingbird(cardId);
     setPlacingHummingbirdSource("deck");
   };
 
   const hummingbirdTraySelect = useCallback(
     (index: number) => {
-      const card = hummingbirdTray[index];
-      if (!card) return;
-      setPlacingHummingbird(card);
+      const cardId = hummingbirdTray[index];
+      if (cardId == null) return;
+      setPlacingHummingbird(cardId);
       setPlacingHummingbirdSource(index);
     },
     [hummingbirdTray],
@@ -528,13 +520,13 @@ function App() {
   }, [hummingbirdDeck]);
 
   const hummingbirdTrayReset = useCallback(() => {
-    const discarded = hummingbirdTray.filter((c): c is HummingbirdCard => c !== null);
+    const discarded = hummingbirdTray.filter((c): c is number => c !== null);
     if (discarded.length > 0) {
       setHummingbirdDiscard((d) => [...d, ...discarded]);
     }
     const count = hummingbirdTray.length;
     const available = Math.min(count, hummingbirdDeck.length);
-    const next: (HummingbirdCard | null)[] = [];
+    const next: (number | null)[] = [];
     for (let i = 0; i < count; i++) {
       next.push(i < available ? hummingbirdDeck[i] : null);
     }
@@ -545,7 +537,7 @@ function App() {
   const placeHummingbird = useCallback(
     (habitat: HabitatType) => {
       if (!placingHummingbird) return;
-      const card = placingHummingbird;
+      const cardId = placingHummingbird;
       // Remove from the source now that placement is confirmed
       if (placingHummingbirdSource === "deck") {
         setHummingbirdDeck((prev) => prev.slice(1));
@@ -563,7 +555,7 @@ function App() {
           ...prev.habitats,
           [habitat]: {
             ...prev.habitats[habitat],
-            hummingbird: card,
+            hummingbird: cardId,
           },
         },
       }));
@@ -591,14 +583,14 @@ function App() {
 
   const discardHummingbird = useCallback(
     (habitat: HabitatType) => {
-      const hb = player.habitats[habitat].hummingbird;
-      if (!hb) return;
-      setHummingbirdDiscard((d) => [...d, hb]);
+      const hbId = player.habitats[habitat].hummingbird;
+      if (hbId == null) return;
+      setHummingbirdDiscard((d) => [...d, hbId]);
       setPlayer((prev) => ({
         ...prev,
         habitats: {
           ...prev.habitats,
-          [habitat]: { ...prev.habitats[habitat], hummingbird: null },
+          [habitat]: { ...prev.habitats[habitat], hummingbird: undefined },
         },
       }));
     },
@@ -617,55 +609,59 @@ function App() {
 
   const addBirdToHand = useCallback(
     (birdId: number) => {
-      const bird = birdDiscard.find((b) => b.id === birdId);
-      if (!bird) return;
-      setBirdDiscard((prev) => prev.filter((b) => b.id !== birdId));
-      setPlayer((prev) => ({ ...prev, birdHand: [...prev.birdHand, bird] }));
+      if (!birdDiscard.includes(birdId)) return;
+      setBirdDiscard((prev) => prev.filter((id) => id !== birdId));
+      setPlayer((prev) => ({ ...prev, birdHand: [...prev.birdHand, birdId] }));
     },
     [birdDiscard],
   );
 
   const addBonusToHand = useCallback(
     (bonusId: number) => {
-      const bonus = bonusDiscard.find((b) => b.id === bonusId);
-      if (!bonus) return;
-      setBonusDiscard((prev) => prev.filter((b) => b.id !== bonusId));
-      setPlayer((prev) => ({ ...prev, bonusHand: [...prev.bonusHand, bonus] }));
+      if (!bonusDiscard.includes(bonusId)) return;
+      setBonusDiscard((prev) => prev.filter((id) => id !== bonusId));
+      setPlayer((prev) => ({ ...prev, bonusHand: [...prev.bonusHand, bonusId] }));
     },
     [bonusDiscard],
   );
 
   // Build dock items: bonus cards first, then bird cards
   const dockItems = useMemo(() => {
-    const bonusItems = player.bonusHand.map((bonus) => ({
-      key: `bonus-${bonus.id}`,
-      baseWidth: BONUS_CARD_WIDTH,
-      render: (h: number) => (
-        <CardWithDiscard width={BONUS_CARD_WIDTH} height={h} onDiscard={() => discardBonus(bonus.id)}>
-          <BonusCardDisplay card={bonus} cardHeight={h} />
-        </CardWithDiscard>
-      ),
-    }));
-    const birdItems = player.birdHand.map((bird) => ({
-      key: `bird-${bird.id}`,
-      baseWidth: HAND_CARD_WIDTH,
-      render: (h: number) => (
-        <CardWithDiscard
-          width={HAND_CARD_WIDTH}
-          height={h}
-          onDiscard={() => discardBird(bird.id)}
-          onPlay={() => setPlacingBird(bird)}
-          onTuck={() => setTuckingBird(bird)}
-          activeAction={placingBird?.id === bird.id ? "play" : tuckingBird?.id === bird.id ? "tuck" : null}
-          onCancelAction={() => {
-            setPlacingBird(null);
-            setTuckingBird(null);
-          }}
-        >
-          <BirdCardDisplay bird={bird} cardHeight={h} />
-        </CardWithDiscard>
-      ),
-    }));
+    const bonusItems = player.bonusHand.map((bonusId) => {
+      const bonus = getBonus(bonusId);
+      return {
+        key: `bonus-${bonusId}`,
+        baseWidth: BONUS_CARD_WIDTH,
+        render: (h: number) => (
+          <CardWithDiscard width={BONUS_CARD_WIDTH} height={h} onDiscard={() => discardBonus(bonusId)}>
+            <BonusCardDisplay card={bonus} cardHeight={h} />
+          </CardWithDiscard>
+        ),
+      };
+    });
+    const birdItems = player.birdHand.map((birdId) => {
+      const bird = getBird(birdId);
+      return {
+        key: `bird-${birdId}`,
+        baseWidth: HAND_CARD_WIDTH,
+        render: (h: number) => (
+          <CardWithDiscard
+            width={HAND_CARD_WIDTH}
+            height={h}
+            onDiscard={() => discardBird(birdId)}
+            onPlay={() => setPlacingBird(birdId)}
+            onTuck={() => setTuckingBird(birdId)}
+            activeAction={placingBird === birdId ? "play" : tuckingBird === birdId ? "tuck" : null}
+            onCancelAction={() => {
+              setPlacingBird(null);
+              setTuckingBird(null);
+            }}
+          >
+            <BirdCardDisplay bird={bird} cardHeight={h} />
+          </CardWithDiscard>
+        ),
+      };
+    });
     return [...bonusItems, ...birdItems];
   }, [player.bonusHand, player.birdHand, discardBird, discardBonus, placingBird, tuckingBird]);
 
@@ -827,7 +823,7 @@ function App() {
                     onDraw={drawBonusCard}
                   />
                   <BonusDiscardPile
-                    cards={bonusDiscard}
+                    cards={bonusDiscard.map(getBonus)}
                     width={DECK_BONUS_WIDTH}
                     height={DECK_CARD_HEIGHT}
                     onClick={() => bonusDiscard.length > 0 && setDiscardModal("bonus")}
@@ -836,7 +832,7 @@ function App() {
                 <div className="flex items-start gap-4">
                   <BirdDeck count={deck.length} width={DECK_CARD_WIDTH} height={DECK_CARD_HEIGHT} onDraw={drawCard} />
                   <BirdDiscardPile
-                    cards={birdDiscard}
+                    cards={birdDiscard.map(getBird)}
                     width={DECK_CARD_WIDTH}
                     height={DECK_CARD_HEIGHT}
                     onClick={() => birdDiscard.length > 0 && setDiscardModal("bird")}
@@ -844,10 +840,12 @@ function App() {
                 </div>
               </div>
               <RoundEndGoalBoard
-                state={roundEndBoard}
+                state={{ goals: roundEndGoalIds.map(getGoal), spots: roundEndSpots }}
                 onReroll={() => {
-                  const shuffled = shuffle(allGoals);
-                  setRoundEndBoard(createRoundEndGoalBoardState(shuffled.slice(0, 4)));
+                  setRoundEndGoalIds(shuffle(allGoalIds).slice(0, 4));
+                  setRoundEndSpots(
+                    Array.from({ length: 4 }, () => Array.from({ length: 4 }, () => ({ cubeColors: [] }))),
+                  );
                 }}
                 placingCube={placingCube}
                 onPlaceCube={(round, placement) => {
@@ -855,30 +853,30 @@ function App() {
                     if (prev.actionCubes <= 0) return prev;
                     return { ...prev, actionCubes: prev.actionCubes - 1 };
                   });
-                  setRoundEndBoard((prev) => {
-                    const spots = prev.spots.map((r) => r.map((s) => ({ ...s, cubeColors: [...s.cubeColors] })));
+                  setRoundEndSpots((prev) => {
+                    const spots = prev.map((r) => r.map((s) => ({ ...s, cubeColors: [...s.cubeColors] })));
                     spots[round][placement].cubeColors.push(player.cubeColor);
-                    return { ...prev, spots };
+                    return spots;
                   });
                   setPlacingCube(false);
                 }}
                 onRemoveCube={(round, placement, cubeIndex) => {
-                  const color = roundEndBoard.spots[round]?.[placement]?.cubeColors[cubeIndex];
+                  const color = roundEndSpots[round]?.[placement]?.cubeColors[cubeIndex];
                   if (!color) return;
                   if (color === player.cubeColor) {
                     setPlayer((prev) => ({ ...prev, actionCubes: prev.actionCubes + 1 }));
                   }
-                  setRoundEndBoard((prev) => {
-                    const spots = prev.spots.map((r) => r.map((s) => ({ ...s, cubeColors: [...s.cubeColors] })));
+                  setRoundEndSpots((prev) => {
+                    const spots = prev.map((r) => r.map((s) => ({ ...s, cubeColors: [...s.cubeColors] })));
                     spots[round][placement].cubeColors.splice(cubeIndex, 1);
-                    return { ...prev, spots };
+                    return spots;
                   });
                 }}
               />
             </div>
             <div className="flex items-start gap-3">
               <BirdTray
-                cards={birdTray}
+                cards={birdTray.map((id) => (id != null ? getBird(id) : null))}
                 cardWidth={DECK_CARD_WIDTH}
                 cardHeight={DECK_CARD_HEIGHT}
                 onAddToHand={trayAddToHand}
@@ -894,14 +892,14 @@ function App() {
                   onDraw={drawHummingbird}
                 />
                 <HummingbirdDiscardPile
-                  cards={hummingbirdDiscard}
+                  cards={hummingbirdDiscard.map(getHummingbird)}
                   width={DECK_HUMMINGBIRD_WIDTH}
                   onClick={() => hummingbirdDiscard.length > 0 && setDiscardModal("hummingbird")}
                 />
               </div>
             </div>
             <HummingbirdTray
-              cards={hummingbirdTray}
+              cards={hummingbirdTray.map((id) => (id != null ? getHummingbird(id) : null))}
               cardWidth={DECK_HUMMINGBIRD_WIDTH}
               cardHeight={DECK_HUMMINGBIRD_HEIGHT}
               onSelect={hummingbirdTraySelect}
@@ -923,7 +921,7 @@ function App() {
       {discardModal === "bird" && (
         <CardListModal
           title="Bird Discard Pile"
-          cards={birdDiscard}
+          cards={birdDiscard.map(getBird)}
           renderCard={(card, h) => <BirdCardDisplay bird={card as BirdCard} cardHeight={h} />}
           onClose={() => setDiscardModal(null)}
           onShuffle={() => setBirdDiscard((prev) => shuffle([...prev]))}
@@ -936,7 +934,7 @@ function App() {
       {discardModal === "bonus" && (
         <CardListModal
           title="Bonus Discard Pile"
-          cards={bonusDiscard}
+          cards={bonusDiscard.map(getBonus)}
           renderCard={(card, h) => <BonusCardDisplay card={card as BonusCard} cardHeight={h} />}
           onClose={() => setDiscardModal(null)}
           onShuffle={() => setBonusDiscard((prev) => shuffle([...prev]))}
@@ -949,7 +947,7 @@ function App() {
       {discardModal === "hummingbird" && (
         <CardListModal
           title="Hummingbird Discard Pile"
-          cards={hummingbirdDiscard}
+          cards={hummingbirdDiscard.map(getHummingbird)}
           renderCard={(card, h) => <HummingbirdCardDisplay card={card as HummingbirdCard} cardHeight={h} />}
           onClose={() => setDiscardModal(null)}
           onShuffle={() => setHummingbirdDiscard((prev) => shuffle([...prev]))}
@@ -958,12 +956,14 @@ function App() {
       {/* Tucked cards modal */}
       {viewingTucked &&
         (() => {
-          const bird = player.habitats[viewingTucked.habitat].birds[viewingTucked.birdIndex];
-          if (!bird) return null;
+          const birdState = player.habitats[viewingTucked.habitat].birds[viewingTucked.birdIndex];
+          if (!birdState) return null;
+          const birdCard = getBird(birdState.id);
+          const tuckedCards = birdState.tuckedCardIds.map(getBird);
           return (
             <CardListModal
-              title={`Tucked under ${bird["Common name"]}`}
-              cards={bird.tuckedCards}
+              title={`Tucked under ${birdCard["Common name"]}`}
+              cards={tuckedCards}
               renderCard={(card, h) => <BirdCardDisplay bird={card as BirdCard} cardHeight={h} />}
               onClose={() => setViewingTucked(null)}
               onAddToHand={unTuck}

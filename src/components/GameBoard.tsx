@@ -1,15 +1,8 @@
 import boardBg from "../../assets/board-background.jpg";
 import birdBack from "../../assets/cards/backgrounds/bird-background.jpg";
+import { getBird, getHummingbird, resolvePlayedBird } from "../cardLookup";
 import { foodUrl, habitatUrl, hummingbirdUrl, iconUrl, powerBgUrl } from "../icons";
-import {
-  HabitatTypes,
-  type BirdCard,
-  type FoodType,
-  type HabitatType,
-  type HummingbirdCard,
-  type PlayedBirdCard,
-  type Player,
-} from "../types";
+import { HabitatTypes, type FoodType, type HabitatType, type PlayedBirdCard, type Player } from "../types";
 import { ActionCube } from "./ActionCube";
 import { CardWithDiscard } from "./CardWithDiscard";
 import { HummingbirdCardDisplay } from "./HummingbirdCardDisplay";
@@ -247,9 +240,9 @@ const BirdSlot: React.FC<{
 
 interface GameBoardProps {
   player: Player;
-  placingBird?: BirdCard | null;
+  placingBird?: number | null;
   onPlaceBird?: (habitat: HabitatType) => void;
-  tuckingBird?: BirdCard | null;
+  tuckingBird?: number | null;
   onTuckBird?: (habitat: HabitatType, birdIndex: number) => void;
   layingEggs?: boolean;
   onLayEgg?: (habitat: HabitatType, birdIndex: number) => void;
@@ -262,7 +255,7 @@ interface GameBoardProps {
   onDiscardPlayed?: (habitat: HabitatType, birdIndex: number) => void;
   migratingBird?: { habitat: HabitatType; birdIndex: number } | null;
   onCompleteMigrate?: (targetHabitat: HabitatType) => void;
-  placingHummingbird?: HummingbirdCard | null;
+  placingHummingbird?: number | null;
   onPlaceHummingbird?: (habitat: HabitatType) => void;
   onDiscardHummingbird?: (habitat: HabitatType) => void;
   onNectarChange?: (habitat: HabitatType, delta: number) => void;
@@ -305,11 +298,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   onReturnUsedCube,
 }) => {
   // Compute which habitats have a valid empty slot for the bird being placed
+  const resolvedPlacingBird = placingBird != null ? getBird(placingBird) : null;
   const highlightedHabitats = new Set<HabitatType>();
-  if (placingBird) {
+  if (resolvedPlacingBird) {
     for (const h of HabitatTypes) {
       const key = (h.charAt(0).toUpperCase() + h.slice(1)) as "Forest" | "Grassland" | "Wetland";
-      if (placingBird[key] && player.habitats[h].birds.length < 5) {
+      if (resolvedPlacingBird[key] && player.habitats[h].birds.length < 5) {
         highlightedHabitats.add(h);
       }
     }
@@ -524,10 +518,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                 >
                   {(() => {
                     const h = HabitatTypes[row];
-                    const hb = player.habitats[h].hummingbird;
-                    const isOpen = !hb && !!placingHummingbird;
+                    const hbId = player.habitats[h].hummingbird;
+                    const isOpen = hbId == null && !!placingHummingbird;
 
-                    if (hb) {
+                    if (hbId != null) {
+                      const hbCard = getHummingbird(hbId);
                       const slotHeight = 720 * 0.315 * HUMMINGBIRD_SCALE;
                       const slotWidth = slotHeight * CARD_RATIO;
                       return (
@@ -536,7 +531,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                           height={slotHeight}
                           onDiscard={() => onDiscardHummingbird?.(h)}
                         >
-                          <HummingbirdCardDisplay card={hb} cardHeight={slotHeight} />
+                          <HummingbirdCardDisplay card={hbCard} cardHeight={slotHeight} />
                         </CardWithDiscard>
                       );
                     }
@@ -585,22 +580,24 @@ export const GameBoard: React.FC<GameBoardProps> = ({
               {Array.from({ length: 5 }, (_, col) => {
                 const h = HabitatTypes[row];
                 const habitatBirds = player.habitats[h].birds;
-                const bird = habitatBirds[col];
-                const isFirstEmpty = !bird && col === habitatBirds.length;
+                const birdState = habitatBirds[col];
+                const bird: PlayedBirdCard | undefined = birdState ? resolvePlayedBird(birdState) : undefined;
+                const isFirstEmpty = !birdState && col === habitatBirds.length;
                 const highlightForPlace = !!placingBird && isFirstEmpty && highlightedHabitats.has(h);
-                const highlightForTuck = !!tuckingBird && !!bird;
-                const highlightForEgg = !!layingEggs && !!bird;
-                const highlightForCache = !!cachingFood && !!bird;
+                const highlightForTuck = !!tuckingBird && !!birdState;
+                const highlightForEgg = !!layingEggs && !!birdState;
+                const highlightForCache = !!cachingFood && !!birdState;
                 const highlightForMigrate =
                   !!migratingBird &&
                   migratingBird.habitat !== h &&
                   isFirstEmpty &&
                   habitatBirds.length < 5 &&
                   (() => {
-                    const mb = player.habitats[migratingBird.habitat].birds[migratingBird.birdIndex];
-                    if (!mb) return false;
+                    const mbState = player.habitats[migratingBird.habitat].birds[migratingBird.birdIndex];
+                    if (!mbState) return false;
+                    const mbBird = getBird(mbState.id);
                     const key = (h.charAt(0).toUpperCase() + h.slice(1)) as "Forest" | "Grassland" | "Wetland";
-                    return mb[key];
+                    return mbBird[key];
                   })();
                 const highlighted =
                   highlightForPlace || highlightForTuck || highlightForEgg || highlightForCache || highlightForMigrate;
