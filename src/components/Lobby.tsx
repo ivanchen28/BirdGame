@@ -95,6 +95,8 @@ export function Lobby({
     );
     storage.set("feederDice", initialDice);
     storage.set("takenDice", []);
+    const names = Object.keys(storage.get("players"));
+    if (names.length > 0) storage.set("firstPlayer", names[0]);
     storage.set("gamePhase", "playing");
   }, []);
 

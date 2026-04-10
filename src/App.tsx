@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import birdBackUrl from "../assets/cards/backgrounds/bird-background.jpg";
 import bonusBackUrl from "../assets/cards/backgrounds/bonus-background.jpg";
+import firstPlayerIcon from "../assets/icons/first_player.webp";
 import {
   allBirdIds,
   allBonusIds,
@@ -29,6 +30,7 @@ import { HummingbirdDiscardPile } from "./components/HummingbirdDiscardPile";
 import { HummingbirdTrack } from "./components/HummingbirdTrack";
 import { HummingbirdTray } from "./components/HummingbirdTray";
 import { Lobby } from "./components/Lobby";
+import { PersonalSupplyDisplay } from "./components/PersonalSupplyDisplay";
 import { RoundEndGoalBoard } from "./components/RoundEndGoalBoard";
 import { foodUrl, iconUrl } from "./icons";
 import { initialPresence, RoomProvider, useMutation, useStorage } from "./liveblocks.config";
@@ -107,6 +109,7 @@ function createInitialStorage() {
     feederDice: initialDice,
     takenDice: [] as typeof initialDice,
     players: {} as Record<string, Player>,
+    firstPlayer: "",
     initialized: true,
   };
 }
@@ -165,12 +168,18 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
   const hummingbirdDiscard = useStorage((root) => root.hummingbirdDiscard)!;
   const roundEndGoalIds = useStorage((root) => root.roundEndGoalIds)!;
   const roundEndSpots = useStorage((root) => root.roundEndSpots)!;
+  const firstPlayer = useStorage((root) => root.firstPlayer)!;
 
   // ── Board viewing state ──
   const [viewingPlayerId, setViewingPlayerId] = useState<string>(currentPlayerId);
   const isViewingOther = viewingPlayerId !== currentPlayerId;
   const viewedPlayer = allPlayers?.[viewingPlayerId] ?? player;
   const playerNames = allPlayers ? Object.keys(allPlayers) : [];
+  const sortedPlayerNames = useMemo(() => {
+    const idx = playerNames.indexOf(currentPlayerId);
+    if (idx <= 0) return playerNames;
+    return [...playerNames.slice(idx), ...playerNames.slice(0, idx)];
+  }, [playerNames, currentPlayerId]);
 
   // ── Local UI state (not synced) ──
   const [placingHummingbird, setPlacingHummingbird] = useState<number | null>(null);
@@ -189,6 +198,14 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
   const pid = currentPlayerId;
 
   // ── Synced mutations ──
+
+  const passFirstPlayer = useMutation(({ storage }) => {
+    const names = Object.keys(storage.get("players"));
+    const current = storage.get("firstPlayer");
+    const idx = names.indexOf(current);
+    const next = names[(idx + 1) % names.length];
+    storage.set("firstPlayer", next);
+  }, []);
 
   const playBirdToHabitat = useMutation(
     ({ storage }, habitat: HabitatType) => {
@@ -929,68 +946,101 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
     >
       {/* ── Left side: game board row + card hand ── */}
       <div className="flex-1 flex flex-col py-2 px-5 overflow-hidden min-w-0">
-        {/* Player tabs */}
-        <div className="flex items-center gap-1 mb-1">
-          {playerNames.map((name) => {
-            const p = allPlayers![name];
-            const isActive = name === viewingPlayerId;
-            const isSelf = name === currentPlayerId;
-            return (
-              <button
-                key={name}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setViewingPlayerId(name);
-                }}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-t-lg text-sm font-semibold transition-all cursor-pointer ${
-                  isActive ? "bg-white/20 text-white" : "bg-white/5 text-white/50 hover:bg-white/10 hover:text-white/70"
-                }`}
-              >
-                <div className="w-3 h-3 rounded-full border border-white/40" style={{ backgroundColor: p.cubeColor }} />
-                <span>{p.name}</span>
-                {isSelf && <span className="text-white/30 text-xs">(you)</span>}
-              </button>
-            );
-          })}
-        </div>
-
         {/* Game board + side column row */}
         <div className="flex items-start gap-4">
-          <GameBoard
-            player={viewedPlayer}
-            readOnly={isViewingOther}
-            placingBird={isViewingOther ? null : placingBird}
-            onPlaceBird={isViewingOther ? undefined : playBirdToHabitat}
-            tuckingBird={isViewingOther ? null : tuckingBird}
-            onTuckBird={isViewingOther ? undefined : tuckBirdBehind}
-            layingEggs={isViewingOther ? false : layingEggs}
-            onLayEgg={isViewingOther ? undefined : layEggOnBird}
-            onRemoveEgg={isViewingOther ? undefined : removeEggFromBird}
-            cachingFood={isViewingOther ? null : cachingFood}
-            onCacheFood={isViewingOther ? undefined : cacheFoodOnBird}
-            onViewTucked={isViewingOther ? undefined : (habitat, birdIndex) => setViewingTucked({ habitat, birdIndex })}
-            migratingBird={isViewingOther ? null : migratingBird}
-            onMigrate={isViewingOther ? undefined : startMigrate}
-            onCompleteMigrate={isViewingOther ? undefined : completeMigrate}
-            onReturnToHand={isViewingOther ? undefined : returnPlayedBirdToHand}
-            onDiscardPlayed={isViewingOther ? undefined : discardPlayedBird}
-            placingHummingbird={isViewingOther ? null : placingHummingbird}
-            onPlaceHummingbird={isViewingOther ? undefined : placeHummingbird}
-            onReturnHummingbird={isViewingOther ? undefined : (h: HabitatType) => setReturningHummingbird(h)}
-            returningHummingbird={isViewingOther ? null : returningHummingbird}
-            onNectarChange={isViewingOther ? undefined : onNectarChange}
-            onUseFood={isViewingOther ? () => {} : removeFood}
-            onStartCache={isViewingOther ? () => {} : (food) => setCachingFood(food)}
-            placingCube={isViewingOther ? false : placingCube}
-            onPlaceCubeToggle={isViewingOther ? undefined : () => setPlacingCube((prev) => !prev)}
-            onPlaceCube={isViewingOther ? undefined : placeActionCube}
-            onCubeClick={
-              isViewingOther
-                ? undefined
-                : (habitat: HabitatType, e: React.MouseEvent) => handleCubeClick(habitat, e.shiftKey)
-            }
-            onReturnUsedCube={isViewingOther ? undefined : onReturnUsedCube}
-          />
+          <div className="flex flex-col gap-1">
+            {/* Header: player names + personal supply */}
+            <div className="flex items-center justify-between pl-2">
+              <div className="flex items-center gap-4">
+                {sortedPlayerNames.map((name) => {
+                  const p = allPlayers![name];
+                  const isActive = name === viewingPlayerId;
+                  return (
+                    <span
+                      key={name}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setViewingPlayerId(name);
+                      }}
+                      className={`font-bold drop-shadow cursor-pointer transition-all border-b-2 ${
+                        isActive ? "" : "border-transparent opacity-50 hover:opacity-80"
+                      }`}
+                      style={{
+                        fontFamily: "CardenioModernBold, SiliciStrong, sans-serif",
+                        fontSize: "2rem",
+                        color: p.cubeColor,
+                        borderColor: isActive ? p.cubeColor : "transparent",
+                      }}
+                    >
+                      {p.name}
+                    </span>
+                  );
+                })}
+              </div>
+              <div className="flex items-center gap-2">
+                {firstPlayer === viewingPlayerId &&
+                  (() => {
+                    const isOwner = firstPlayer === currentPlayerId;
+                    return (
+                      <img
+                        src={firstPlayerIcon}
+                        alt="first player"
+                        className={`h-8 drop-shadow transition-all ${isOwner ? "cursor-pointer hover:brightness-125" : ""}`}
+                        onClick={
+                          isOwner
+                            ? (e) => {
+                                e.stopPropagation();
+                                passFirstPlayer();
+                              }
+                            : undefined
+                        }
+                      />
+                    );
+                  })()}
+                <PersonalSupplyDisplay
+                  player={viewedPlayer}
+                  onUseFood={isViewingOther ? () => {} : removeFood}
+                  onStartCache={isViewingOther ? () => {} : (food) => setCachingFood(food)}
+                  placingCube={isViewingOther ? false : placingCube}
+                  onPlaceCubeToggle={isViewingOther ? undefined : () => setPlacingCube((prev) => !prev)}
+                />
+              </div>
+            </div>
+            <GameBoard
+              player={viewedPlayer}
+              readOnly={isViewingOther}
+              placingBird={isViewingOther ? null : placingBird}
+              onPlaceBird={isViewingOther ? undefined : playBirdToHabitat}
+              tuckingBird={isViewingOther ? null : tuckingBird}
+              onTuckBird={isViewingOther ? undefined : tuckBirdBehind}
+              layingEggs={isViewingOther ? false : layingEggs}
+              onLayEgg={isViewingOther ? undefined : layEggOnBird}
+              onRemoveEgg={isViewingOther ? undefined : removeEggFromBird}
+              cachingFood={isViewingOther ? null : cachingFood}
+              onCacheFood={isViewingOther ? undefined : cacheFoodOnBird}
+              onViewTucked={
+                isViewingOther ? undefined : (habitat, birdIndex) => setViewingTucked({ habitat, birdIndex })
+              }
+              migratingBird={isViewingOther ? null : migratingBird}
+              onMigrate={isViewingOther ? undefined : startMigrate}
+              onCompleteMigrate={isViewingOther ? undefined : completeMigrate}
+              onReturnToHand={isViewingOther ? undefined : returnPlayedBirdToHand}
+              onDiscardPlayed={isViewingOther ? undefined : discardPlayedBird}
+              placingHummingbird={isViewingOther ? null : placingHummingbird}
+              onPlaceHummingbird={isViewingOther ? undefined : placeHummingbird}
+              onReturnHummingbird={isViewingOther ? undefined : (h: HabitatType) => setReturningHummingbird(h)}
+              returningHummingbird={isViewingOther ? null : returningHummingbird}
+              onNectarChange={isViewingOther ? undefined : onNectarChange}
+              placingCube={isViewingOther ? false : placingCube}
+              onPlaceCube={isViewingOther ? undefined : placeActionCube}
+              onCubeClick={
+                isViewingOther
+                  ? undefined
+                  : (habitat: HabitatType, e: React.MouseEvent) => handleCubeClick(habitat, e.shiftKey)
+              }
+              onReturnUsedCube={isViewingOther ? undefined : onReturnUsedCube}
+            />
+          </div>
 
           {/* Bird feeder + Food piles + Eggs + Hummingbird track */}
           <div className="flex flex-col items-stretch gap-2 self-start">

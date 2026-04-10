@@ -27,6 +27,7 @@ type Storage = {
   roundEndSpots: RoundEndSpot[][];
   feederDice: Die[];
   takenDice: Die[];
+  firstPlayer: string;
   players: Record<string, Player>;
   initialized: boolean;
 };

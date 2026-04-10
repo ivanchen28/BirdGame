@@ -5,7 +5,7 @@ import { foodUrl, habitatUrl, hummingbirdUrl, iconUrl, powerBgUrl } from "../ico
 import { HabitatTypes, type FoodType, type HabitatType, type PlayedBirdCard, type Player } from "../types";
 import { ActionCube } from "./ActionCube";
 import { HummingbirdCardDisplay } from "./HummingbirdCardDisplay";
-import { PersonalSupplyDisplay } from "./PersonalSupplyDisplay";
+
 import { PlayedBirdCardDisplay } from "./PlayedBirdCardDisplay";
 
 const CARD_RATIO = 0.655; // width / height
@@ -260,10 +260,7 @@ interface GameBoardProps {
   onReturnHummingbird?: (habitat: HabitatType) => void;
   returningHummingbird?: HabitatType | null;
   onNectarChange?: (habitat: HabitatType, delta: number) => void;
-  onUseFood: (food: FoodType) => void;
-  onStartCache: (food: FoodType) => void;
   placingCube?: boolean;
-  onPlaceCubeToggle?: () => void;
   onPlaceCube?: (habitat: HabitatType | "playABird") => void;
   onCubeClick?: (habitat: HabitatType, e: React.MouseEvent) => void;
   onReturnUsedCube?: (habitat: HabitatType | "playABird") => void;
@@ -292,10 +289,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   onReturnHummingbird,
   returningHummingbird,
   onNectarChange,
-  onUseFood,
-  onStartCache,
   placingCube,
-  onPlaceCubeToggle,
   onPlaceCube,
   onCubeClick,
   onReturnUsedCube,
@@ -313,445 +307,420 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   }
 
   return (
-    <div className="flex flex-col gap-1">
-      {/* Header: player name + personal supply */}
-      <div className="flex items-center justify-between pl-2">
-        <span
-          className="font-bold drop-shadow"
-          style={{
-            fontFamily: "CardenioModernBold, SiliciStrong, sans-serif",
-            fontSize: "2rem",
-            color: player.cubeColor,
-          }}
-        >
-          {player.name}
-        </span>
-        <PersonalSupplyDisplay
-          player={player}
-          onUseFood={onUseFood}
-          onStartCache={onStartCache}
-          placingCube={placingCube}
-          onPlaceCubeToggle={onPlaceCubeToggle}
-        />
-      </div>
+    <div
+      className="relative rounded-xl overflow-hidden shadow-lg"
+      style={{
+        height: "720px",
+        minWidth: "1020px",
+        backgroundImage: `url(${boardBg})`,
+        backgroundSize: "cover",
+        backgroundPosition: "left center",
+      }}
+    >
+      {/* Layout: unified grid with hummingbird + bird columns */}
       <div
-        className="relative rounded-xl overflow-hidden shadow-lg"
+        className="h-full grid gap-1 px-1 pb-1"
         style={{
-          height: "720px",
-          minWidth: "1020px",
-          backgroundImage: `url(${boardBg})`,
-          backgroundSize: "cover",
-          backgroundPosition: "left center",
+          gridTemplateRows: `4% repeat(3, 31.5%)`,
+          gridTemplateColumns: `auto repeat(${5}, auto) auto`,
         }}
       >
-        {/* Layout: unified grid with hummingbird + bird columns */}
-        <div
-          className="h-full grid gap-1 px-1 pb-1"
-          style={{
-            gridTemplateRows: `4% repeat(3, 31.5%)`,
-            gridTemplateColumns: `auto repeat(${5}, auto) auto`,
-          }}
-        >
-          {/* Egg cost header row */}
-          {/* Play a Bird - first header cell */}
-          <div className="flex items-center gap-2 px-1 pt-1">
-            <img src={habitatUrl("play_a_bird")} alt="play a bird" className="h-5 drop-shadow" />
-            <span
-              className="text-white drop-shadow whitespace-nowrap"
-              style={{ fontFamily: "CardenioModernBold, SiliciStrong, sans-serif", fontSize: "1.2rem" }}
-            >
-              PLAY A BIRD
-            </span>
-            {player.playABirdCubes > 0 && (
-              <div className="flex items-center gap-1">
-                {Array.from({ length: player.playABirdCubes }, (_, i) => (
-                  <button
-                    key={i}
-                    className="cursor-pointer hover:brightness-125 transition-all"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onReturnUsedCube?.("playABird");
-                    }}
-                  >
-                    <ActionCube color={player.cubeColor} size={20} />
-                  </button>
+        {/* Egg cost header row */}
+        {/* Play a Bird - first header cell */}
+        <div className="flex items-center gap-2 px-1 pt-1">
+          <img src={habitatUrl("play_a_bird")} alt="play a bird" className="h-5 drop-shadow" />
+          <span
+            className="text-white drop-shadow whitespace-nowrap"
+            style={{ fontFamily: "CardenioModernBold, SiliciStrong, sans-serif", fontSize: "1.2rem" }}
+          >
+            PLAY A BIRD
+          </span>
+          {player.playABirdCubes > 0 && (
+            <div className="flex items-center gap-1">
+              {Array.from({ length: player.playABirdCubes }, (_, i) => (
+                <button
+                  key={i}
+                  className="cursor-pointer hover:brightness-125 transition-all"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onReturnUsedCube?.("playABird");
+                  }}
+                >
+                  <ActionCube color={player.cubeColor} size={20} />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        {EGG_COSTS.slice(1).map((count, col) =>
+          count > 0 ? (
+            <div className="w-full flex justify-center">
+              <div
+                key={`egg-${col + 1}`}
+                className="flex justify-center gap-0.5 -mt-0.5 pt-2 bg-black/10 rounded-b w-[50px]"
+              >
+                {Array.from({ length: count }, (_, i) => (
+                  <img key={i} src={iconUrl("egg")} alt="egg" className="h-5 drop-shadow" />
                 ))}
               </div>
-            )}
-          </div>
-          {EGG_COSTS.slice(1).map((count, col) =>
-            count > 0 ? (
-              <div className="w-full flex justify-center">
-                <div
-                  key={`egg-${col + 1}`}
-                  className="flex justify-center gap-0.5 -mt-0.5 pt-2 bg-black/10 rounded-b w-[50px]"
-                >
-                  {Array.from({ length: count }, (_, i) => (
-                    <img key={i} src={iconUrl("egg")} alt="egg" className="h-5 drop-shadow" />
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div />
-            ),
-          )}
-          <div /> {/* empty cell in header for row-end column */}
-          {Array.from({ length: 3 }, (_, row) => (
-            <>
-              {/* Info + Hummingbird wrapper */}
-              <div key={`infohb-${row}`} className="relative flex items-stretch">
-                {/* Separator line */}
-                <div
-                  className="absolute top-0 left-1 right-1 h-0.5 bg-white/40 rounded-full"
-                  style={{ transform: "translateY(-50%)" }}
+            </div>
+          ) : (
+            <div />
+          ),
+        )}
+        <div /> {/* empty cell in header for row-end column */}
+        {Array.from({ length: 3 }, (_, row) => (
+          <>
+            {/* Info + Hummingbird wrapper */}
+            <div key={`infohb-${row}`} className="relative flex items-stretch">
+              {/* Separator line */}
+              <div
+                className="absolute top-0 left-1 right-1 h-0.5 bg-white/40 rounded-full"
+                style={{ transform: "translateY(-50%)" }}
+              />
+              {/* Habitat info */}
+              <div
+                className="flex flex-col items-center pt-2 gap-1 px-2 overflow-visible"
+                style={{ width: "6.5rem", minWidth: "6.5rem" }}
+              >
+                <img
+                  src={habitatUrl(`${HabitatTypes[row]}-glow`)}
+                  alt={HabitatTypes[row]}
+                  className="w-10 drop-shadow"
                 />
-                {/* Habitat info */}
-                <div
-                  className="flex flex-col items-center pt-2 gap-1 px-2 overflow-visible"
-                  style={{ width: "6.5rem", minWidth: "6.5rem" }}
+                <span
+                  className="text-white text-center leading-tight drop-shadow"
+                  style={{
+                    fontFamily: "CardenioModernBold, SiliciStrong, sans-serif",
+                    fontSize: "1.4rem",
+                    maxWidth: "4.5rem",
+                  }}
                 >
-                  <img
-                    src={habitatUrl(`${HabitatTypes[row]}-glow`)}
-                    alt={HabitatTypes[row]}
-                    className="w-10 drop-shadow"
-                  />
-                  <span
-                    className="text-white text-center leading-tight drop-shadow"
-                    style={{
-                      fontFamily: "CardenioModernBold, SiliciStrong, sans-serif",
-                      fontSize: "1.4rem",
-                      maxWidth: "4.5rem",
-                    }}
-                  >
-                    {HABITAT_TITLES[HabitatTypes[row]]}
-                  </span>
-                  <div
-                    className="relative grid grid-cols-[2rem_1fr] items-center gap-1 rounded-md border-2 border-white/30 px-1.5 py-1 cursor-pointer transition-colors hover:bg-white/40 bg-white/15"
-                    style={{ width: "5.5rem", height: "2.75rem" }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onNectarChange?.(HabitatTypes[row], e.shiftKey ? -1 : 1);
-                    }}
-                  >
-                    <div className="relative w-8 h-8 flex-shrink-0">
-                      {player.habitats[HabitatTypes[row]].spentNectar > 0 ? (
-                        <>
-                          <img
-                            src={foodUrl("nectar")}
-                            alt="nectar"
-                            className="absolute inset-0 w-8 h-8 object-contain drop-shadow"
-                          />
-                          <span
-                            className="absolute inset-0 flex items-center justify-center text-white font-bold drop-shadow"
-                            style={{
-                              fontFamily: "CardenioModernBold, SiliciStrong, sans-serif",
-                              fontSize: "1.1rem",
-                              textShadow: "0 0 4px rgba(0,0,0,0.8)",
-                            }}
-                          >
-                            {player.habitats[HabitatTypes[row]].spentNectar}
-                          </span>
-                        </>
-                      ) : (
-                        <img src={iconUrl("spent_nectar")} alt="spent nectar" className="w-8 drop-shadow" />
-                      )}
-                    </div>
-                    <div
-                      className="text-white/80 text-center leading-tight drop-shadow"
-                      style={{
-                        fontFamily: "CardenioModernBold, SiliciStrong, sans-serif",
-                        fontSize: "0.5rem",
-                      }}
-                    >
-                      GAME END:
-                      <br />
-                      <span className="inline-flex items-center">
-                        5/2 <img src={iconUrl("point")} alt="pts" className="inline pr-0.5 h-2.5 brightness-0 invert" />{" "}
-                        FOR
-                      </span>
-                      <br />
-                      MAJORITY
-                    </div>
-                  </div>
-                  <div className="relative">
-                    <img
-                      src={powerBgUrl("brown")}
-                      alt=""
-                      className="absolute -left-5 h-9 object-fill pointer-events-none min-w-[225px] max-w-[225px]"
-                      style={{ top: "53%", transform: "translateY(-50%)", zIndex: 0 }}
-                    />
-                    <span
-                      className="relative text-white/80 text-center leading-tight drop-shadow px-1.5 py-0.5 block"
-                      style={{
-                        fontFamily: "CardenioModernBold, SiliciStrong, sans-serif",
-                        fontSize: "0.75rem",
-                        zIndex: 2,
-                      }}
-                    >
-                      THEN ACTIVATE
-                      <br />
-                      BROWN POWERS
-                    </span>
-                  </div>
-                  {/* Used action cubes */}
-                  {player.habitats[HabitatTypes[row]].actionCubes > 0 && (
-                    <div
-                      className="flex items-center gap-1 self-start pl-1"
-                      style={{ position: "relative", zIndex: 5 }}
-                    >
-                      {Array.from({ length: player.habitats[HabitatTypes[row]].actionCubes }, (_, i) => (
-                        <button
-                          key={i}
-                          className="cursor-pointer hover:brightness-125 transition-all"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onReturnUsedCube?.(HabitatTypes[row]);
+                  {HABITAT_TITLES[HabitatTypes[row]]}
+                </span>
+                <div
+                  className="relative grid grid-cols-[2rem_1fr] items-center gap-1 rounded-md border-2 border-white/30 px-1.5 py-1 cursor-pointer transition-colors hover:bg-white/40 bg-white/15"
+                  style={{ width: "5.5rem", height: "2.75rem" }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onNectarChange?.(HabitatTypes[row], e.shiftKey ? -1 : 1);
+                  }}
+                >
+                  <div className="relative w-8 h-8 flex-shrink-0">
+                    {player.habitats[HabitatTypes[row]].spentNectar > 0 ? (
+                      <>
+                        <img
+                          src={foodUrl("nectar")}
+                          alt="nectar"
+                          className="absolute inset-0 w-8 h-8 object-contain drop-shadow"
+                        />
+                        <span
+                          className="absolute inset-0 flex items-center justify-center text-white font-bold drop-shadow"
+                          style={{
+                            fontFamily: "CardenioModernBold, SiliciStrong, sans-serif",
+                            fontSize: "1.1rem",
+                            textShadow: "0 0 4px rgba(0,0,0,0.8)",
                           }}
                         >
-                          <ActionCube color={player.cubeColor} size={24} />
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                          {player.habitats[HabitatTypes[row]].spentNectar}
+                        </span>
+                      </>
+                    ) : (
+                      <img src={iconUrl("spent_nectar")} alt="spent nectar" className="w-8 drop-shadow" />
+                    )}
+                  </div>
+                  <div
+                    className="text-white/80 text-center leading-tight drop-shadow"
+                    style={{
+                      fontFamily: "CardenioModernBold, SiliciStrong, sans-serif",
+                      fontSize: "0.5rem",
+                    }}
+                  >
+                    GAME END:
+                    <br />
+                    <span className="inline-flex items-center">
+                      5/2 <img src={iconUrl("point")} alt="pts" className="inline pr-0.5 h-2.5 brightness-0 invert" />{" "}
+                      FOR
+                    </span>
+                    <br />
+                    MAJORITY
+                  </div>
                 </div>
-                {/* Hummingbird slot */}
-                <div
-                  className="flex flex-col items-center pt-1"
-                  style={{ width: 720 * 0.315 * HUMMINGBIRD_SCALE * CARD_RATIO }}
-                >
-                  {(() => {
-                    const h = HabitatTypes[row];
-                    const hbId = player.habitats[h].hummingbird;
-                    const isOpen = hbId == null && !!placingHummingbird;
+                <div className="relative">
+                  <img
+                    src={powerBgUrl("brown")}
+                    alt=""
+                    className="absolute -left-5 h-9 object-fill pointer-events-none min-w-[225px] max-w-[225px]"
+                    style={{ top: "53%", transform: "translateY(-50%)", zIndex: 0 }}
+                  />
+                  <span
+                    className="relative text-white/80 text-center leading-tight drop-shadow px-1.5 py-0.5 block"
+                    style={{
+                      fontFamily: "CardenioModernBold, SiliciStrong, sans-serif",
+                      fontSize: "0.75rem",
+                      zIndex: 2,
+                    }}
+                  >
+                    THEN ACTIVATE
+                    <br />
+                    BROWN POWERS
+                  </span>
+                </div>
+                {/* Used action cubes */}
+                {player.habitats[HabitatTypes[row]].actionCubes > 0 && (
+                  <div className="flex items-center gap-1 self-start pl-1" style={{ position: "relative", zIndex: 5 }}>
+                    {Array.from({ length: player.habitats[HabitatTypes[row]].actionCubes }, (_, i) => (
+                      <button
+                        key={i}
+                        className="cursor-pointer hover:brightness-125 transition-all"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onReturnUsedCube?.(HabitatTypes[row]);
+                        }}
+                      >
+                        <ActionCube color={player.cubeColor} size={24} />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {/* Hummingbird slot */}
+              <div
+                className="flex flex-col items-center pt-1"
+                style={{ width: 720 * 0.315 * HUMMINGBIRD_SCALE * CARD_RATIO }}
+              >
+                {(() => {
+                  const h = HabitatTypes[row];
+                  const hbId = player.habitats[h].hummingbird;
+                  const isOpen = hbId == null && !!placingHummingbird;
 
-                    if (hbId != null) {
-                      const hbCard = getHummingbird(hbId);
-                      const slotHeight = 720 * 0.315 * HUMMINGBIRD_SCALE;
-                      const isReturning = returningHummingbird === h;
-                      return (
-                        <div
-                          className={`relative rounded-lg transition-shadow ${
-                            isReturning
-                              ? ""
-                              : onReturnHummingbird
-                                ? "cursor-pointer hover:ring-2 hover:ring-yellow-400 hover:shadow-[0_0_12px_rgba(250,204,21,0.6)]"
-                                : ""
-                          }`}
-                          onClick={
-                            onReturnHummingbird
-                              ? (e) => {
-                                  e.stopPropagation();
-                                  onReturnHummingbird(h);
-                                }
-                              : undefined
-                          }
-                        >
-                          <HummingbirdCardDisplay card={hbCard} cardHeight={slotHeight} />
-                          {isReturning && (
-                            <div
-                              className="absolute inset-0 flex flex-col items-center justify-center rounded-lg ring-2 ring-yellow-400 shadow-[0_0_12px_rgba(250,204,21,0.6)]"
-                              style={{ background: "rgba(0,0,0,0.4)", zIndex: 10 }}
-                            >
-                              <span
-                                className="text-white font-bold text-xs"
-                                style={{ fontFamily: "CardenioModernBold, sans-serif" }}
-                              >
-                                Returning…
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    }
-
+                  if (hbId != null) {
+                    const hbCard = getHummingbird(hbId);
+                    const slotHeight = 720 * 0.315 * HUMMINGBIRD_SCALE;
+                    const isReturning = returningHummingbird === h;
                     return (
                       <div
-                        className={`rounded-lg border-2 z-10 ${
-                          isOpen
-                            ? "border-yellow-400 shadow-[0_0_12px_rgba(250,204,21,0.6)] cursor-pointer bg-black/20"
-                            : "border-white/40 bg-black/10"
+                        className={`relative rounded-lg transition-shadow ${
+                          isReturning
+                            ? ""
+                            : onReturnHummingbird
+                              ? "cursor-pointer hover:ring-2 hover:ring-yellow-400 hover:shadow-[0_0_12px_rgba(250,204,21,0.6)]"
+                              : ""
                         }`}
-                        style={{
-                          aspectRatio: `${CARD_RATIO}`,
-                          height: `${HUMMINGBIRD_SCALE * 100}%`,
-                        }}
                         onClick={
-                          isOpen
+                          onReturnHummingbird
                             ? (e) => {
                                 e.stopPropagation();
-                                onPlaceHummingbird?.(h);
+                                onReturnHummingbird(h);
                               }
                             : undefined
                         }
-                      />
-                    );
-                  })()}
-                  <div className="flex items-center gap-1 mt-0.5">
-                    <span
-                      className="text-white/80 drop-shadow"
-                      style={{
-                        fontFamily: "CardenioModernBold, SiliciStrong, sans-serif",
-                        fontSize: "0.7rem",
-                      }}
-                    >
-                      THEN
-                    </span>
-                    <img
-                      src={hummingbirdUrl("hummingbird")}
-                      alt="hummingbird"
-                      className="h-3 drop-shadow brightness-0 invert"
-                    />
-                  </div>
-                </div>
-              </div>
-              {/* Bird slots */}
-              {Array.from({ length: 5 }, (_, col) => {
-                const h = HabitatTypes[row];
-                const habitatBirds = player.habitats[h].birds;
-                const birdState = habitatBirds[col];
-                const bird: PlayedBirdCard | undefined = birdState ? resolvePlayedBird(birdState) : undefined;
-                const isFirstEmpty = !birdState && col === habitatBirds.length;
-                const highlightForPlace = !!placingBird && isFirstEmpty && highlightedHabitats.has(h);
-                const highlightForTuck = !!tuckingBird && !!birdState;
-                const highlightForEgg = !!layingEggs && !!birdState;
-                const highlightForCache = !!cachingFood && !!birdState;
-                const highlightForMigrate =
-                  !!migratingBird &&
-                  migratingBird.habitat !== h &&
-                  isFirstEmpty &&
-                  habitatBirds.length < 5 &&
-                  (() => {
-                    const mbState = player.habitats[migratingBird.habitat].birds[migratingBird.birdIndex];
-                    if (!mbState) return false;
-                    const mbBird = getBird(mbState.id);
-                    const key = (h.charAt(0).toUpperCase() + h.slice(1)) as "Forest" | "Grassland" | "Wetland";
-                    return mbBird[key];
-                  })();
-                const highlighted =
-                  highlightForPlace || highlightForTuck || highlightForEgg || highlightForCache || highlightForMigrate;
-                // Show action cube on the slot indicated by activeCube (1-5 for bird slots)
-                const activeCubeSlot = player.habitats[h].activeCube;
-                const showCube = activeCubeSlot != null && activeCubeSlot === col + 1;
-                return (
-                  <BirdSlot
-                    key={`bird-${row}-${col}`}
-                    habitat={h}
-                    column={col}
-                    bird={bird}
-                    highlighted={highlighted}
-                    actionCube={showCube ? { color: player.cubeColor } : undefined}
-                    onCubeClick={showCube ? (e) => onCubeClick?.(h, e) : undefined}
-                    onRemoveEgg={bird && bird.eggsLaid > 0 ? () => onRemoveEgg?.(h, col) : undefined}
-                    onViewTucked={bird && bird.tuckedCards.length > 0 ? () => onViewTucked?.(h, col) : undefined}
-                    onMigrate={bird ? () => onMigrate?.(h, col) : undefined}
-                    onReturnToHand={bird ? () => onReturnToHand?.(h, col) : undefined}
-                    onDiscardPlayed={bird ? () => onDiscardPlayed?.(h, col) : undefined}
-                    onSlotClick={
-                      highlightForPlace
-                        ? () => {
-                            onPlaceBird?.(h);
-                          }
-                        : highlightForMigrate
-                          ? () => {
-                              onCompleteMigrate?.(h);
-                            }
-                          : highlightForTuck
-                            ? () => {
-                                onTuckBird?.(h, col);
-                              }
-                            : highlightForEgg
-                              ? () => {
-                                  onLayEgg?.(h, col);
-                                }
-                              : highlightForCache
-                                ? () => {
-                                    onCacheFood?.(h, col);
-                                  }
-                                : undefined
-                    }
-                  />
-                );
-              })}
-              {/* Row-end icons */}
-              <div className="relative flex flex-col items-center justify-center gap-1">
-                {Array.from({ length: 4 }, (_, i) => {
-                  const icon = ROW_END_ICONS[row];
-                  if (icon.type === "die") {
-                    return <img key={i} src={iconUrl("die")} alt="die" className="h-6 drop-shadow" />;
-                  }
-                  if (icon.type === "egg") {
-                    return <img key={i} src={iconUrl("egg")} alt="egg" className="h-6 drop-shadow" />;
-                  }
-                  return (
-                    <img
-                      key={i}
-                      src={birdBack}
-                      alt="card"
-                      className="h-6 rounded-sm drop-shadow"
-                      style={{ aspectRatio: `${CARD_RATIO}` }}
-                    />
-                  );
-                })}
-                {(() => {
-                  const h = HabitatTypes[row];
-                  const habitatData = player.habitats[h];
-                  if (habitatData.activeCube === 6) {
-                    return (
-                      <div
-                        className="absolute top-2 left-1/2 -translate-x-1/2 cursor-pointer"
-                        style={{ zIndex: 50 }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onCubeClick?.(h, e);
-                        }}
                       >
-                        <ActionCube color={player.cubeColor} size={28} />
+                        <HummingbirdCardDisplay card={hbCard} cardHeight={slotHeight} />
+                        {isReturning && (
+                          <div
+                            className="absolute inset-0 flex flex-col items-center justify-center rounded-lg ring-2 ring-yellow-400 shadow-[0_0_12px_rgba(250,204,21,0.6)]"
+                            style={{ background: "rgba(0,0,0,0.4)", zIndex: 10 }}
+                          >
+                            <span
+                              className="text-white font-bold text-xs"
+                              style={{ fontFamily: "CardenioModernBold, sans-serif" }}
+                            >
+                              Returning…
+                            </span>
+                          </div>
+                        )}
                       </div>
                     );
                   }
-                  return null;
+
+                  return (
+                    <div
+                      className={`rounded-lg border-2 z-10 ${
+                        isOpen
+                          ? "border-yellow-400 shadow-[0_0_12px_rgba(250,204,21,0.6)] cursor-pointer bg-black/20"
+                          : "border-white/40 bg-black/10"
+                      }`}
+                      style={{
+                        aspectRatio: `${CARD_RATIO}`,
+                        height: `${HUMMINGBIRD_SCALE * 100}%`,
+                      }}
+                      onClick={
+                        isOpen
+                          ? (e) => {
+                              e.stopPropagation();
+                              onPlaceHummingbird?.(h);
+                            }
+                          : undefined
+                      }
+                    />
+                  );
                 })()}
+                <div className="flex items-center gap-1 mt-0.5">
+                  <span
+                    className="text-white/80 drop-shadow"
+                    style={{
+                      fontFamily: "CardenioModernBold, SiliciStrong, sans-serif",
+                      fontSize: "0.7rem",
+                    }}
+                  >
+                    THEN
+                  </span>
+                  <img
+                    src={hummingbirdUrl("hummingbird")}
+                    alt="hummingbird"
+                    className="h-3 drop-shadow brightness-0 invert"
+                  />
+                </div>
               </div>
-            </>
-          ))}
-          {/* Action cube placement overlays — highlight entire habitat row */}
-          {placingCube && (
-            <>
-              {/* Play a Bird header overlay */}
+            </div>
+            {/* Bird slots */}
+            {Array.from({ length: 5 }, (_, col) => {
+              const h = HabitatTypes[row];
+              const habitatBirds = player.habitats[h].birds;
+              const birdState = habitatBirds[col];
+              const bird: PlayedBirdCard | undefined = birdState ? resolvePlayedBird(birdState) : undefined;
+              const isFirstEmpty = !birdState && col === habitatBirds.length;
+              const highlightForPlace = !!placingBird && isFirstEmpty && highlightedHabitats.has(h);
+              const highlightForTuck = !!tuckingBird && !!birdState;
+              const highlightForEgg = !!layingEggs && !!birdState;
+              const highlightForCache = !!cachingFood && !!birdState;
+              const highlightForMigrate =
+                !!migratingBird &&
+                migratingBird.habitat !== h &&
+                isFirstEmpty &&
+                habitatBirds.length < 5 &&
+                (() => {
+                  const mbState = player.habitats[migratingBird.habitat].birds[migratingBird.birdIndex];
+                  if (!mbState) return false;
+                  const mbBird = getBird(mbState.id);
+                  const key = (h.charAt(0).toUpperCase() + h.slice(1)) as "Forest" | "Grassland" | "Wetland";
+                  return mbBird[key];
+                })();
+              const highlighted =
+                highlightForPlace || highlightForTuck || highlightForEgg || highlightForCache || highlightForMigrate;
+              // Show action cube on the slot indicated by activeCube (1-5 for bird slots)
+              const activeCubeSlot = player.habitats[h].activeCube;
+              const showCube = activeCubeSlot != null && activeCubeSlot === col + 1;
+              return (
+                <BirdSlot
+                  key={`bird-${row}-${col}`}
+                  habitat={h}
+                  column={col}
+                  bird={bird}
+                  highlighted={highlighted}
+                  actionCube={showCube ? { color: player.cubeColor } : undefined}
+                  onCubeClick={showCube ? (e) => onCubeClick?.(h, e) : undefined}
+                  onRemoveEgg={bird && bird.eggsLaid > 0 ? () => onRemoveEgg?.(h, col) : undefined}
+                  onViewTucked={bird && bird.tuckedCards.length > 0 ? () => onViewTucked?.(h, col) : undefined}
+                  onMigrate={bird ? () => onMigrate?.(h, col) : undefined}
+                  onReturnToHand={bird ? () => onReturnToHand?.(h, col) : undefined}
+                  onDiscardPlayed={bird ? () => onDiscardPlayed?.(h, col) : undefined}
+                  onSlotClick={
+                    highlightForPlace
+                      ? () => {
+                          onPlaceBird?.(h);
+                        }
+                      : highlightForMigrate
+                        ? () => {
+                            onCompleteMigrate?.(h);
+                          }
+                        : highlightForTuck
+                          ? () => {
+                              onTuckBird?.(h, col);
+                            }
+                          : highlightForEgg
+                            ? () => {
+                                onLayEgg?.(h, col);
+                              }
+                            : highlightForCache
+                              ? () => {
+                                  onCacheFood?.(h, col);
+                                }
+                              : undefined
+                  }
+                />
+              );
+            })}
+            {/* Row-end icons */}
+            <div className="relative flex flex-col items-center justify-center gap-1">
+              {Array.from({ length: 4 }, (_, i) => {
+                const icon = ROW_END_ICONS[row];
+                if (icon.type === "die") {
+                  return <img key={i} src={iconUrl("die")} alt="die" className="h-6 drop-shadow" />;
+                }
+                if (icon.type === "egg") {
+                  return <img key={i} src={iconUrl("egg")} alt="egg" className="h-6 drop-shadow" />;
+                }
+                return (
+                  <img
+                    key={i}
+                    src={birdBack}
+                    alt="card"
+                    className="h-6 rounded-sm drop-shadow"
+                    style={{ aspectRatio: `${CARD_RATIO}` }}
+                  />
+                );
+              })}
+              {(() => {
+                const h = HabitatTypes[row];
+                const habitatData = player.habitats[h];
+                if (habitatData.activeCube === 6) {
+                  return (
+                    <div
+                      className="absolute top-2 left-1/2 -translate-x-1/2 cursor-pointer"
+                      style={{ zIndex: 50 }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onCubeClick?.(h, e);
+                      }}
+                    >
+                      <ActionCube color={player.cubeColor} size={28} />
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+            </div>
+          </>
+        ))}
+        {/* Action cube placement overlays — highlight entire habitat row */}
+        {placingCube && (
+          <>
+            {/* Play a Bird header overlay */}
+            <div
+              className="absolute rounded-lg border-2 border-yellow-400 shadow-[0_0_12px_rgba(250,204,21,0.6)] bg-yellow-400/10 cursor-pointer transition-colors hover:bg-yellow-400/20"
+              style={{
+                top: 0,
+                left: 0,
+                right: 0,
+                height: "4%",
+                zIndex: 20,
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onPlaceCube?.("playABird");
+              }}
+            />
+            {HabitatTypes.map((h, row) => (
               <div
+                key={`cube-overlay-${h}`}
                 className="absolute rounded-lg border-2 border-yellow-400 shadow-[0_0_12px_rgba(250,204,21,0.6)] bg-yellow-400/10 cursor-pointer transition-colors hover:bg-yellow-400/20"
                 style={{
-                  top: 0,
+                  top: `calc(4% + ${row} * 31.5%)`,
                   left: 0,
                   right: 0,
-                  height: "4%",
+                  height: "31.5%",
                   zIndex: 20,
                 }}
                 onClick={(e) => {
                   e.stopPropagation();
-                  onPlaceCube?.("playABird");
+                  onPlaceCube?.(h);
                 }}
               />
-              {HabitatTypes.map((h, row) => (
-                <div
-                  key={`cube-overlay-${h}`}
-                  className="absolute rounded-lg border-2 border-yellow-400 shadow-[0_0_12px_rgba(250,204,21,0.6)] bg-yellow-400/10 cursor-pointer transition-colors hover:bg-yellow-400/20"
-                  style={{
-                    top: `calc(4% + ${row} * 31.5%)`,
-                    left: 0,
-                    right: 0,
-                    height: "31.5%",
-                    zIndex: 20,
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onPlaceCube?.(h);
-                  }}
-                />
-              ))}
-            </>
-          )}
-        </div>
+            ))}
+          </>
+        )}
       </div>
     </div>
   );
