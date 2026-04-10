@@ -11,6 +11,11 @@ body {
   margin: 0;
 }
 
+/* Hide Liveblocks badge */
+#liveblocks-badge {
+  display: none !important;
+}
+
 @font-face {
   font-family: "CardenioModernBold";
   src: url("/assets/fonts/CardenioModern-Bold.otf") format("opentype");

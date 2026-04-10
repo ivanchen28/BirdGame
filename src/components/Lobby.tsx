@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { HexColorInput, HexColorPicker } from "react-colorful";
 import { allBirdIds, allBonusIds, allGoalIds, allHummingbirdIds } from "../cardLookup";
 import { useMutation, useOthers, useStorage, useUpdateMyPresence, type Presence } from "../liveblocks.config";
 import { createFeederDice, createPlayer, type Player } from "../types";
@@ -12,17 +13,6 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-const COLOR_OPTIONS = [
-  { name: "White", value: "white" },
-  { name: "Black", value: "black" },
-  { name: "Red", value: "red" },
-  { name: "Blue", value: "blue" },
-  { name: "Yellow", value: "yellow" },
-  { name: "Green", value: "green" },
-  { name: "Purple", value: "purple" },
-  { name: "Orange", value: "orange" },
-];
-
 export function Lobby({
   playerName,
   onJoin,
@@ -33,7 +23,7 @@ export function Lobby({
   onEnterGame?: () => void;
 }) {
   const [nameInput, setNameInput] = useState(playerName ?? "");
-  const [selectedColor, setSelectedColor] = useState("white");
+  const [selectedColor, setSelectedColor] = useState("#ffffff");
   const players = useStorage((root) => root.players) as Record<string, Player> | null;
   const gamePhase = useStorage((root) => root.gamePhase);
   const updateMyPresence = useUpdateMyPresence();
@@ -129,7 +119,6 @@ export function Lobby({
   }, []);
 
   const playerList = players ? Object.values(players) : [];
-  const takenColors = new Set(playerList.map((p) => p.cubeColor));
 
   const handleRejoin = () => {
     const name = nameInput.trim();
@@ -225,29 +214,29 @@ export function Lobby({
 
             {/* Color picker (only shown when creating a new player) */}
             {!(players && nameInput.trim() in players) && (
-              <div className="w-full flex flex-col gap-1">
+              <div className="w-full flex flex-col gap-2">
                 <label className="text-white/70 text-sm font-semibold">Cube Color</label>
-                <div className="flex gap-2 flex-wrap">
-                  {COLOR_OPTIONS.map((c) => {
-                    const taken = takenColors.has(c.value);
-                    const selected = selectedColor === c.value;
-                    return (
-                      <button
-                        key={c.value}
-                        onClick={() => !taken && setSelectedColor(c.value)}
-                        disabled={taken}
-                        className={`w-9 h-9 rounded-full border-2 transition-all cursor-pointer ${
-                          taken
-                            ? "opacity-30 cursor-not-allowed"
-                            : selected
-                              ? "ring-2 ring-yellow-400 border-yellow-400"
-                              : "border-white/40 hover:border-white/70"
-                        }`}
-                        style={{ backgroundColor: c.value }}
-                        title={taken ? `${c.name} (taken)` : c.name}
+                <div className="flex items-start gap-4">
+                  <HexColorPicker
+                    color={selectedColor}
+                    onChange={setSelectedColor}
+                    style={{ width: 160, height: 160 }}
+                  />
+                  <div className="flex flex-col gap-2 items-center">
+                    <div
+                      className="w-10 h-10 rounded-full border-2 border-white/40"
+                      style={{ backgroundColor: selectedColor }}
+                    />
+                    <div className="flex items-center gap-1">
+                      <span className="text-white/60 text-xs font-mono">#</span>
+                      <HexColorInput
+                        color={selectedColor}
+                        onChange={setSelectedColor}
+                        prefixed={false}
+                        className="w-[4.5rem] px-1.5 py-0.5 rounded bg-white/10 border border-white/20 text-white text-xs font-mono outline-none focus:border-white/50"
                       />
-                    );
-                  })}
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
