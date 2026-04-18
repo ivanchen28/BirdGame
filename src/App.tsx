@@ -36,6 +36,7 @@ import { foodUrl, iconUrl } from "./icons";
 import { initialPresence, RoomProvider, useMutation, useStorage } from "./liveblocks.config";
 import {
   createFeederDice,
+  PLAYER_SLOTS,
   toPlayedBirdState,
   type BirdCard,
   type BonusCard,
@@ -44,6 +45,7 @@ import {
   type HummingbirdCard,
   type HummingbirdGroup,
   type Player,
+  type PlayerSlot,
   type RoundEndSpot,
 } from "./types";
 
@@ -108,7 +110,10 @@ function createInitialStorage() {
     roundEndSpots: Array.from({ length: 4 }, () => Array.from({ length: 4 }, () => ({ cubeColors: [] as string[] }))),
     feederDice: initialDice,
     takenDice: [] as typeof initialDice,
-    players: {} as Record<string, Player>,
+    player1: null as Player | null,
+    player2: null as Player | null,
+    player3: null as Player | null,
+    player4: null as Player | null,
     firstPlayer: "",
     initialized: true,
   };
@@ -156,8 +161,10 @@ function GameLoader({ playerName, onJoin }: { playerName: string | null; onJoin:
 
 function Game({ currentPlayerId }: { currentPlayerId: string }) {
   // ── Read synced state from Liveblocks ──
-  const allPlayers = useStorage((root) => root.players) as Record<string, Player> | null;
-  const player = useStorage((root) => root.players[currentPlayerId] as Player)!;
+  const player1 = useStorage((root) => root.player1);
+  const player2 = useStorage((root) => root.player2);
+  const player3 = useStorage((root) => root.player3);
+  const player4 = useStorage((root) => root.player4);
   const deck = useStorage((root) => root.birdDeck)!;
   const birdTray = useStorage((root) => root.birdTray)!;
   const bonusDeck = useStorage((root) => root.bonusDeck)!;
@@ -170,11 +177,31 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
   const roundEndSpots = useStorage((root) => root.roundEndSpots)!;
   const firstPlayer = useStorage((root) => root.firstPlayer)!;
 
+  // ── Derive player lookup from individual slots ──
+  const allSlots = useMemo(() => [player1, player2, player3, player4], [player1, player2, player3, player4]);
+  const allPlayers = useMemo(() => {
+    const map: Record<string, Player> = {};
+    for (const p of allSlots) {
+      if (p) map[p.name] = p;
+    }
+    return map;
+  }, [allSlots]);
+  const player = allPlayers[currentPlayerId]!;
+
+  // Helper: find which storage slot key holds a player by name (used inside mutations)
+  function findSlot(storage: any, name: string): PlayerSlot | null {
+    for (const slot of PLAYER_SLOTS) {
+      const p = storage.get(slot);
+      if (p && p.name === name) return slot;
+    }
+    return null;
+  }
+
   // ── Board viewing state ──
   const [viewingPlayerId, setViewingPlayerId] = useState<string>(currentPlayerId);
   const isViewingOther = viewingPlayerId !== currentPlayerId;
-  const viewedPlayer = allPlayers?.[viewingPlayerId] ?? player;
-  const playerNames = allPlayers ? Object.keys(allPlayers) : [];
+  const viewedPlayer = allPlayers[viewingPlayerId] ?? player;
+  const playerNames = useMemo(() => allSlots.filter((p): p is Player => p !== null).map((p) => p.name), [allSlots]);
   const sortedPlayerNames = useMemo(() => {
     const idx = playerNames.indexOf(currentPlayerId);
     if (idx <= 0) return playerNames;
@@ -200,7 +227,9 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
   // ── Synced mutations ──
 
   const passFirstPlayer = useMutation(({ storage }) => {
-    const names = Object.keys(storage.get("players"));
+    const names = PLAYER_SLOTS.map((s) => storage.get(s))
+      .filter((p): p is Player => p !== null)
+      .map((p) => p.name);
     const current = storage.get("firstPlayer");
     const idx = names.indexOf(current);
     const next = names[(idx + 1) % names.length];
@@ -211,18 +240,17 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
     ({ storage }, habitat: HabitatType) => {
       if (!placingBird) return;
       const birdId = placingBird;
-      const p = storage.get("players")[pid];
-      storage.set("players", {
-        ...storage.get("players"),
-        [pid]: {
-          ...p,
-          birdHand: p.birdHand.filter((id: number) => id !== birdId),
-          habitats: {
-            ...p.habitats,
-            [habitat]: {
-              ...p.habitats[habitat],
-              birds: [...p.habitats[habitat].birds, toPlayedBirdState(birdId)],
-            },
+      const slot = findSlot(storage, pid);
+      if (!slot) return;
+      const p = storage.get(slot)!;
+      storage.set(slot, {
+        ...p,
+        birdHand: p.birdHand.filter((id: number) => id !== birdId),
+        habitats: {
+          ...p.habitats,
+          [habitat]: {
+            ...p.habitats[habitat],
+            birds: [...p.habitats[habitat].birds, toPlayedBirdState(birdId)],
           },
         },
       });
@@ -235,22 +263,21 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
     ({ storage }, habitat: HabitatType, birdIndex: number) => {
       if (!tuckingBird) return;
       const cardId = tuckingBird;
-      const p = storage.get("players")[pid];
+      const slot = findSlot(storage, pid);
+      if (!slot) return;
+      const p = storage.get(slot)!;
       const birds = [...p.habitats[habitat].birds];
       const target = birds[birdIndex];
       birds[birdIndex] = {
         ...target,
         tuckedCardIds: [...target.tuckedCardIds, cardId],
       };
-      storage.set("players", {
-        ...storage.get("players"),
-        [pid]: {
-          ...p,
-          birdHand: p.birdHand.filter((id: number) => id !== cardId),
-          habitats: {
-            ...p.habitats,
-            [habitat]: { ...p.habitats[habitat], birds },
-          },
+      storage.set(slot, {
+        ...p,
+        birdHand: p.birdHand.filter((id: number) => id !== cardId),
+        habitats: {
+          ...p.habitats,
+          [habitat]: { ...p.habitats[habitat], birds },
         },
       });
       setTuckingBird(null);
@@ -260,16 +287,15 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
 
   const layEggOnBird = useMutation(
     ({ storage }, habitat: HabitatType, birdIndex: number) => {
-      const p = storage.get("players")[pid];
+      const slot = findSlot(storage, pid);
+      if (!slot) return;
+      const p = storage.get(slot)!;
       const birds = [...p.habitats[habitat].birds];
       const target = birds[birdIndex];
       birds[birdIndex] = { ...target, eggsLaid: target.eggsLaid + 1 };
-      storage.set("players", {
-        ...storage.get("players"),
-        [pid]: {
-          ...p,
-          habitats: { ...p.habitats, [habitat]: { ...p.habitats[habitat], birds } },
-        },
+      storage.set(slot, {
+        ...p,
+        habitats: { ...p.habitats, [habitat]: { ...p.habitats[habitat], birds } },
       });
     },
     [pid],
@@ -277,17 +303,16 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
 
   const removeEggFromBird = useMutation(
     ({ storage }, habitat: HabitatType, birdIndex: number) => {
-      const p = storage.get("players")[pid];
+      const slot = findSlot(storage, pid);
+      if (!slot) return;
+      const p = storage.get(slot)!;
       const birds = [...p.habitats[habitat].birds];
       const target = birds[birdIndex];
       if (target.eggsLaid <= 0) return;
       birds[birdIndex] = { ...target, eggsLaid: target.eggsLaid - 1 };
-      storage.set("players", {
-        ...storage.get("players"),
-        [pid]: {
-          ...p,
-          habitats: { ...p.habitats, [habitat]: { ...p.habitats[habitat], birds } },
-        },
+      storage.set(slot, {
+        ...p,
+        habitats: { ...p.habitats, [habitat]: { ...p.habitats[habitat], birds } },
       });
     },
     [pid],
@@ -295,10 +320,12 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
 
   const gainFood = useMutation(
     ({ storage }, foodType: FoodType) => {
-      const p = storage.get("players")[pid];
-      storage.set("players", {
-        ...storage.get("players"),
-        [pid]: { ...p, food: { ...p.food, [foodType]: p.food[foodType] + 1 } },
+      const slot = findSlot(storage, pid);
+      if (!slot) return;
+      const p = storage.get(slot)!;
+      storage.set(slot, {
+        ...p,
+        food: { ...p.food, [foodType]: p.food[foodType] + 1 },
       });
     },
     [pid],
@@ -306,11 +333,13 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
 
   const removeFood = useMutation(
     ({ storage }, foodType: FoodType) => {
-      const p = storage.get("players")[pid];
+      const slot = findSlot(storage, pid);
+      if (!slot) return;
+      const p = storage.get(slot)!;
       if (p.food[foodType] <= 0) return;
-      storage.set("players", {
-        ...storage.get("players"),
-        [pid]: { ...p, food: { ...p.food, [foodType]: p.food[foodType] - 1 } },
+      storage.set(slot, {
+        ...p,
+        food: { ...p.food, [foodType]: p.food[foodType] - 1 },
       });
     },
     [pid],
@@ -320,7 +349,9 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
     ({ storage }, habitat: HabitatType, birdIndex: number) => {
       if (!cachingFood) return;
       const foodType = cachingFood;
-      const p = storage.get("players")[pid];
+      const slot = findSlot(storage, pid);
+      if (!slot) return;
+      const p = storage.get(slot)!;
       if (p.food[foodType] <= 0) return;
       const birds = [...p.habitats[habitat].birds];
       const target = birds[birdIndex];
@@ -328,13 +359,10 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
         ...target,
         cachedFood: { ...target.cachedFood, [foodType]: target.cachedFood[foodType] + 1 },
       };
-      storage.set("players", {
-        ...storage.get("players"),
-        [pid]: {
-          ...p,
-          food: { ...p.food, [foodType]: p.food[foodType] - 1 },
-          habitats: { ...p.habitats, [habitat]: { ...p.habitats[habitat], birds } },
-        },
+      storage.set(slot, {
+        ...p,
+        food: { ...p.food, [foodType]: p.food[foodType] - 1 },
+        habitats: { ...p.habitats, [habitat]: { ...p.habitats[habitat], birds } },
       });
       setCachingFood(null);
     },
@@ -343,7 +371,9 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
 
   const uncacheFoodFromBird = useMutation(
     ({ storage }, habitat: HabitatType, birdIndex: number, foodType: FoodType) => {
-      const p = storage.get("players")[pid];
+      const slot = findSlot(storage, pid);
+      if (!slot) return;
+      const p = storage.get(slot)!;
       const birds = [...p.habitats[habitat].birds];
       const target = birds[birdIndex];
       if (target.cachedFood[foodType] <= 0) return;
@@ -351,13 +381,10 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
         ...target,
         cachedFood: { ...target.cachedFood, [foodType]: target.cachedFood[foodType] - 1 },
       };
-      storage.set("players", {
-        ...storage.get("players"),
-        [pid]: {
-          ...p,
-          food: { ...p.food, [foodType]: p.food[foodType] + 1 },
-          habitats: { ...p.habitats, [habitat]: { ...p.habitats[habitat], birds } },
-        },
+      storage.set(slot, {
+        ...p,
+        food: { ...p.food, [foodType]: p.food[foodType] + 1 },
+        habitats: { ...p.habitats, [habitat]: { ...p.habitats[habitat], birds } },
       });
     },
     [pid],
@@ -366,7 +393,9 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
   const unTuck = useMutation(
     ({ storage }, cardId: number) => {
       if (!viewingTucked) return;
-      const p = storage.get("players")[pid];
+      const slot = findSlot(storage, pid);
+      if (!slot) return;
+      const p = storage.get(slot)!;
       const birds = [...p.habitats[viewingTucked.habitat].birds];
       const target = birds[viewingTucked.birdIndex];
       if (!target.tuckedCardIds.includes(cardId)) return;
@@ -374,15 +403,12 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
         ...target,
         tuckedCardIds: target.tuckedCardIds.filter((id: number) => id !== cardId),
       };
-      storage.set("players", {
-        ...storage.get("players"),
-        [pid]: {
-          ...p,
-          birdHand: [...p.birdHand, cardId],
-          habitats: {
-            ...p.habitats,
-            [viewingTucked.habitat]: { ...p.habitats[viewingTucked.habitat], birds },
-          },
+      storage.set(slot, {
+        ...p,
+        birdHand: [...p.birdHand, cardId],
+        habitats: {
+          ...p.habitats,
+          [viewingTucked.habitat]: { ...p.habitats[viewingTucked.habitat], birds },
         },
       });
       const remaining = birds[viewingTucked.birdIndex].tuckedCardIds.length;
@@ -399,21 +425,20 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
     ({ storage }, targetHabitat: HabitatType) => {
       if (!migratingBird) return;
       const { habitat: srcHabitat, birdIndex } = migratingBird;
-      const p = storage.get("players")[pid];
+      const slot = findSlot(storage, pid);
+      if (!slot) return;
+      const p = storage.get(slot)!;
       const srcBirds = [...p.habitats[srcHabitat].birds];
       const bird = srcBirds[birdIndex];
       if (!bird) return;
       srcBirds.splice(birdIndex, 1);
       const destBirds = [...p.habitats[targetHabitat].birds, bird];
-      storage.set("players", {
-        ...storage.get("players"),
-        [pid]: {
-          ...p,
-          habitats: {
-            ...p.habitats,
-            [srcHabitat]: { ...p.habitats[srcHabitat], birds: srcBirds },
-            [targetHabitat]: { ...p.habitats[targetHabitat], birds: destBirds },
-          },
+      storage.set(slot, {
+        ...p,
+        habitats: {
+          ...p.habitats,
+          [srcHabitat]: { ...p.habitats[srcHabitat], birds: srcBirds },
+          [targetHabitat]: { ...p.habitats[targetHabitat], birds: destBirds },
         },
       });
       setMigratingBird(null);
@@ -423,30 +448,26 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
 
   const placeActionCube = useMutation(
     ({ storage }, habitat: HabitatType | "playABird") => {
-      const p = storage.get("players")[pid];
+      const slot = findSlot(storage, pid);
+      if (!slot) return;
+      const p = storage.get(slot)!;
       if (p.actionCubes <= 0) return;
       if (habitat === "playABird") {
-        storage.set("players", {
-          ...storage.get("players"),
-          [pid]: {
-            ...p,
-            actionCubes: p.actionCubes - 1,
-            playABirdCubes: p.playABirdCubes + 1,
-          },
+        storage.set(slot, {
+          ...p,
+          actionCubes: p.actionCubes - 1,
+          playABirdCubes: p.playABirdCubes + 1,
         });
       } else {
         if (p.habitats[habitat].activeCube !== null) return;
         const birdCount = p.habitats[habitat].birds.length;
-        const slot = birdCount < 5 ? birdCount + 1 : 6;
-        storage.set("players", {
-          ...storage.get("players"),
-          [pid]: {
-            ...p,
-            actionCubes: p.actionCubes - 1,
-            habitats: {
-              ...p.habitats,
-              [habitat]: { ...p.habitats[habitat], activeCube: slot },
-            },
+        const slotNum = birdCount < 5 ? birdCount + 1 : 6;
+        storage.set(slot, {
+          ...p,
+          actionCubes: p.actionCubes - 1,
+          habitats: {
+            ...p.habitats,
+            [habitat]: { ...p.habitats[habitat], activeCube: slotNum },
           },
         });
       }
@@ -457,51 +478,41 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
 
   const handleCubeClick = useMutation(
     ({ storage }, habitat: HabitatType, shiftKey: boolean) => {
-      const p = storage.get("players")[pid];
+      const slot = findSlot(storage, pid);
+      if (!slot) return;
+      const p = storage.get(slot)!;
       const current = p.habitats[habitat].activeCube;
       if (current == null) return;
       if (shiftKey) {
         if (current >= 6) {
-          storage.set("players", {
-            ...storage.get("players"),
-            [pid]: {
-              ...p,
-              actionCubes: p.actionCubes + 1,
-              habitats: { ...p.habitats, [habitat]: { ...p.habitats[habitat], activeCube: null } },
-            },
+          storage.set(slot, {
+            ...p,
+            actionCubes: p.actionCubes + 1,
+            habitats: { ...p.habitats, [habitat]: { ...p.habitats[habitat], activeCube: null } },
           });
         } else {
-          storage.set("players", {
-            ...storage.get("players"),
-            [pid]: {
-              ...p,
-              habitats: { ...p.habitats, [habitat]: { ...p.habitats[habitat], activeCube: current + 1 } },
-            },
+          storage.set(slot, {
+            ...p,
+            habitats: { ...p.habitats, [habitat]: { ...p.habitats[habitat], activeCube: current + 1 } },
           });
         }
       } else {
         if (current <= 1) {
-          storage.set("players", {
-            ...storage.get("players"),
-            [pid]: {
-              ...p,
-              habitats: {
-                ...p.habitats,
-                [habitat]: {
-                  ...p.habitats[habitat],
-                  activeCube: null,
-                  actionCubes: p.habitats[habitat].actionCubes + 1,
-                },
+          storage.set(slot, {
+            ...p,
+            habitats: {
+              ...p.habitats,
+              [habitat]: {
+                ...p.habitats[habitat],
+                activeCube: null,
+                actionCubes: p.habitats[habitat].actionCubes + 1,
               },
             },
           });
         } else {
-          storage.set("players", {
-            ...storage.get("players"),
-            [pid]: {
-              ...p,
-              habitats: { ...p.habitats, [habitat]: { ...p.habitats[habitat], activeCube: current - 1 } },
-            },
+          storage.set(slot, {
+            ...p,
+            habitats: { ...p.habitats, [habitat]: { ...p.habitats[habitat], activeCube: current - 1 } },
           });
         }
       }
@@ -511,18 +522,17 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
 
   const returnPlayedBirdToHand = useMutation(
     ({ storage }, habitat: HabitatType, birdIndex: number) => {
-      const p = storage.get("players")[pid];
+      const slot = findSlot(storage, pid);
+      if (!slot) return;
+      const p = storage.get(slot)!;
       const birdState = p.habitats[habitat].birds[birdIndex];
       if (!birdState) return;
       const birds = [...p.habitats[habitat].birds];
       birds.splice(birdIndex, 1);
-      storage.set("players", {
-        ...storage.get("players"),
-        [pid]: {
-          ...p,
-          birdHand: [...p.birdHand, birdState.id],
-          habitats: { ...p.habitats, [habitat]: { ...p.habitats[habitat], birds } },
-        },
+      storage.set(slot, {
+        ...p,
+        birdHand: [...p.birdHand, birdState.id],
+        habitats: { ...p.habitats, [habitat]: { ...p.habitats[habitat], birds } },
       });
       if (birdState.tuckedCardIds.length > 0) {
         const discard = storage.get("birdDiscard");
@@ -534,17 +544,16 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
 
   const discardPlayedBird = useMutation(
     ({ storage }, habitat: HabitatType, birdIndex: number) => {
-      const p = storage.get("players")[pid];
+      const slot = findSlot(storage, pid);
+      if (!slot) return;
+      const p = storage.get(slot)!;
       const birdState = p.habitats[habitat].birds[birdIndex];
       if (!birdState) return;
       const birds = [...p.habitats[habitat].birds];
       birds.splice(birdIndex, 1);
-      storage.set("players", {
-        ...storage.get("players"),
-        [pid]: {
-          ...p,
-          habitats: { ...p.habitats, [habitat]: { ...p.habitats[habitat], birds } },
-        },
+      storage.set(slot, {
+        ...p,
+        habitats: { ...p.habitats, [habitat]: { ...p.habitats[habitat], birds } },
       });
       const discard = storage.get("birdDiscard");
       storage.set("birdDiscard", [...discard, birdState.id, ...birdState.tuckedCardIds]);
@@ -554,11 +563,13 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
 
   const discardBird = useMutation(
     ({ storage }, birdId: number) => {
-      const p = storage.get("players")[pid];
+      const slot = findSlot(storage, pid);
+      if (!slot) return;
+      const p = storage.get(slot)!;
       if (!p.birdHand.includes(birdId)) return;
-      storage.set("players", {
-        ...storage.get("players"),
-        [pid]: { ...p, birdHand: p.birdHand.filter((id: number) => id !== birdId) },
+      storage.set(slot, {
+        ...p,
+        birdHand: p.birdHand.filter((id: number) => id !== birdId),
       });
       const discard = storage.get("birdDiscard");
       storage.set("birdDiscard", [...discard, birdId]);
@@ -568,11 +579,13 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
 
   const discardBonus = useMutation(
     ({ storage }, bonusId: number) => {
-      const p = storage.get("players")[pid];
+      const slot = findSlot(storage, pid);
+      if (!slot) return;
+      const p = storage.get(slot)!;
       if (!p.bonusHand.includes(bonusId)) return;
-      storage.set("players", {
-        ...storage.get("players"),
-        [pid]: { ...p, bonusHand: p.bonusHand.filter((id: number) => id !== bonusId) },
+      storage.set(slot, {
+        ...p,
+        bonusHand: p.bonusHand.filter((id: number) => id !== bonusId),
       });
       const discard = storage.get("bonusDiscard");
       storage.set("bonusDiscard", [...discard, bonusId]);
@@ -586,8 +599,10 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
       if (d.length === 0) return;
       const cardId = d[0];
       storage.set("birdDeck", d.slice(1));
-      const p = storage.get("players")[pid];
-      storage.set("players", { ...storage.get("players"), [pid]: { ...p, birdHand: [...p.birdHand, cardId] } });
+      const slot = findSlot(storage, pid);
+      if (!slot) return;
+      const p = storage.get(slot)!;
+      storage.set(slot, { ...p, birdHand: [...p.birdHand, cardId] });
     },
     [pid],
   );
@@ -597,8 +612,10 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
       const tray = storage.get("birdTray");
       const cardId = tray[index];
       if (cardId == null) return;
-      const p = storage.get("players")[pid];
-      storage.set("players", { ...storage.get("players"), [pid]: { ...p, birdHand: [...p.birdHand, cardId] } });
+      const slot = findSlot(storage, pid);
+      if (!slot) return;
+      const p = storage.get(slot)!;
+      storage.set(slot, { ...p, birdHand: [...p.birdHand, cardId] });
       const next = [...tray];
       next[index] = null;
       storage.set("birdTray", next);
@@ -655,8 +672,10 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
       if (d.length === 0) return;
       const cardId = d[0];
       storage.set("bonusDeck", d.slice(1));
-      const p = storage.get("players")[pid];
-      storage.set("players", { ...storage.get("players"), [pid]: { ...p, bonusHand: [...p.bonusHand, cardId] } });
+      const slot = findSlot(storage, pid);
+      if (!slot) return;
+      const p = storage.get(slot)!;
+      storage.set(slot, { ...p, bonusHand: [...p.bonusHand, cardId] });
     },
     [pid],
   );
@@ -723,15 +742,14 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
         tray[placingHummingbirdSource].pop();
         storage.set("hummingbirdTray", tray);
       }
-      const p = storage.get("players")[pid];
-      storage.set("players", {
-        ...storage.get("players"),
-        [pid]: {
-          ...p,
-          habitats: {
-            ...p.habitats,
-            [habitat]: { ...p.habitats[habitat], hummingbird: cardId },
-          },
+      const slot = findSlot(storage, pid);
+      if (!slot) return;
+      const p = storage.get(slot)!;
+      storage.set(slot, {
+        ...p,
+        habitats: {
+          ...p.habitats,
+          [habitat]: { ...p.habitats[habitat], hummingbird: cardId },
         },
       });
       setPlacingHummingbird(null);
@@ -761,15 +779,14 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
     ({ storage }, slotIndex: number) => {
       if (returningHummingbird == null) return;
       const habitat = returningHummingbird;
-      const p = storage.get("players")[pid];
+      const slot = findSlot(storage, pid);
+      if (!slot) return;
+      const p = storage.get(slot)!;
       const hbId = p.habitats[habitat].hummingbird;
       if (hbId == null) return;
-      storage.set("players", {
-        ...storage.get("players"),
-        [pid]: {
-          ...p,
-          habitats: { ...p.habitats, [habitat]: { ...p.habitats[habitat], hummingbird: null } },
-        },
+      storage.set(slot, {
+        ...p,
+        habitats: { ...p.habitats, [habitat]: { ...p.habitats[habitat], hummingbird: null } },
       });
       const tray = storage.get("hummingbirdTray").map((s: number[]) => [...s]);
       tray[slotIndex] = [...tray[slotIndex], hbId];
@@ -781,13 +798,12 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
 
   const moveHummingbird = useMutation(
     ({ storage }, group: HummingbirdGroup, delta: number) => {
-      const p = storage.get("players")[pid];
-      storage.set("players", {
-        ...storage.get("players"),
-        [pid]: {
-          ...p,
-          hummingbirdTrack: { ...p.hummingbirdTrack, [group]: p.hummingbirdTrack[group] + delta },
-        },
+      const slot = findSlot(storage, pid);
+      if (!slot) return;
+      const p = storage.get(slot)!;
+      storage.set(slot, {
+        ...p,
+        hummingbirdTrack: { ...p.hummingbirdTrack, [group]: p.hummingbirdTrack[group] + delta },
       });
     },
     [pid],
@@ -801,8 +817,10 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
         "birdDiscard",
         discard.filter((id: number) => id !== birdId),
       );
-      const p = storage.get("players")[pid];
-      storage.set("players", { ...storage.get("players"), [pid]: { ...p, birdHand: [...p.birdHand, birdId] } });
+      const slot = findSlot(storage, pid);
+      if (!slot) return;
+      const p = storage.get(slot)!;
+      storage.set(slot, { ...p, birdHand: [...p.birdHand, birdId] });
     },
     [pid],
   );
@@ -815,24 +833,25 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
         "bonusDiscard",
         discard.filter((id: number) => id !== bonusId),
       );
-      const p = storage.get("players")[pid];
-      storage.set("players", { ...storage.get("players"), [pid]: { ...p, bonusHand: [...p.bonusHand, bonusId] } });
+      const slot = findSlot(storage, pid);
+      if (!slot) return;
+      const p = storage.get(slot)!;
+      storage.set(slot, { ...p, bonusHand: [...p.bonusHand, bonusId] });
     },
     [pid],
   );
 
   const onNectarChange = useMutation(
     ({ storage }, habitat: HabitatType, delta: number) => {
-      const p = storage.get("players")[pid];
+      const slot = findSlot(storage, pid);
+      if (!slot) return;
+      const p = storage.get(slot)!;
       const current = p.habitats[habitat].spentNectar;
       const next = Math.max(0, current + delta);
       if (next === current) return;
-      storage.set("players", {
-        ...storage.get("players"),
-        [pid]: {
-          ...p,
-          habitats: { ...p.habitats, [habitat]: { ...p.habitats[habitat], spentNectar: next } },
-        },
+      storage.set(slot, {
+        ...p,
+        habitats: { ...p.habitats, [habitat]: { ...p.habitats[habitat], spentNectar: next } },
       });
     },
     [pid],
@@ -840,28 +859,24 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
 
   const onReturnUsedCube = useMutation(
     ({ storage }, habitat: HabitatType | "playABird") => {
-      const p = storage.get("players")[pid];
+      const slot = findSlot(storage, pid);
+      if (!slot) return;
+      const p = storage.get(slot)!;
       if (habitat === "playABird") {
         if (p.playABirdCubes <= 0) return;
-        storage.set("players", {
-          ...storage.get("players"),
-          [pid]: {
-            ...p,
-            actionCubes: p.actionCubes + 1,
-            playABirdCubes: p.playABirdCubes - 1,
-          },
+        storage.set(slot, {
+          ...p,
+          actionCubes: p.actionCubes + 1,
+          playABirdCubes: p.playABirdCubes - 1,
         });
         return;
       }
       const h = p.habitats[habitat];
       if (h.actionCubes <= 0) return;
-      storage.set("players", {
-        ...storage.get("players"),
-        [pid]: {
-          ...p,
-          actionCubes: p.actionCubes + 1,
-          habitats: { ...p.habitats, [habitat]: { ...h, actionCubes: h.actionCubes - 1 } },
-        },
+      storage.set(slot, {
+        ...p,
+        actionCubes: p.actionCubes + 1,
+        habitats: { ...p.habitats, [habitat]: { ...h, actionCubes: h.actionCubes - 1 } },
       });
     },
     [pid],
@@ -877,9 +892,11 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
 
   const onRoundEndPlaceCube = useMutation(
     ({ storage }, round: number, placement: number) => {
-      const p = storage.get("players")[pid];
+      const slot = findSlot(storage, pid);
+      if (!slot) return;
+      const p = storage.get(slot)!;
       if (p.actionCubes <= 0) return;
-      storage.set("players", { ...storage.get("players"), [pid]: { ...p, actionCubes: p.actionCubes - 1 } });
+      storage.set(slot, { ...p, actionCubes: p.actionCubes - 1 });
       const spots = storage.get("roundEndSpots");
       const newSpots = spots.map((r: RoundEndSpot[]) =>
         r.map((s: RoundEndSpot) => ({ ...s, cubeColors: [...s.cubeColors] })),
@@ -896,9 +913,11 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
       const spots = storage.get("roundEndSpots");
       const color = spots[round]?.[placement]?.cubeColors[cubeIndex];
       if (!color) return;
-      const p = storage.get("players")[pid];
+      const slot = findSlot(storage, pid);
+      if (!slot) return;
+      const p = storage.get(slot)!;
       if (color === p.cubeColor) {
-        storage.set("players", { ...storage.get("players"), [pid]: { ...p, actionCubes: p.actionCubes + 1 } });
+        storage.set(slot, { ...p, actionCubes: p.actionCubes + 1 });
       }
       const newSpots = spots.map((r: RoundEndSpot[]) =>
         r.map((s: RoundEndSpot) => ({ ...s, cubeColors: [...s.cubeColors] })),
@@ -979,7 +998,7 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
             <div className="flex items-center justify-between pl-2">
               <div className="flex items-center gap-4">
                 {sortedPlayerNames.map((name) => {
-                  const p = allPlayers![name];
+                  const p = allPlayers[name];
                   const isActive = name === viewingPlayerId;
                   return (
                     <span

@@ -28,7 +28,10 @@ type Storage = {
   feederDice: Die[];
   takenDice: Die[];
   firstPlayer: string;
-  players: Record<string, Player>;
+  player1: Player | null;
+  player2: Player | null;
+  player3: Player | null;
+  player4: Player | null;
   initialized: boolean;
 };
 

@@ -286,3 +286,9 @@ export function createPlayer(name: string, cubeColor: string): Player {
     },
   };
 }
+
+// ── Player Slots ──
+
+export const PLAYER_SLOTS = ["player1", "player2", "player3", "player4"] as const;
+export type PlayerSlot = (typeof PLAYER_SLOTS)[number];
+export const MAX_PLAYERS = PLAYER_SLOTS.length;

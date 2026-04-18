@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { HexColorInput, HexColorPicker } from "react-colorful";
 import { allBirdIds, allBonusIds, allGoalIds, allHummingbirdIds } from "../cardLookup";
 import { useMutation, useOthers, useStorage, useUpdateMyPresence, type Presence } from "../liveblocks.config";
-import { createFeederDice, createPlayer, type Player } from "../types";
+import { createFeederDice, createPlayer, MAX_PLAYERS, PLAYER_SLOTS, type Player } from "../types";
 
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -24,16 +24,27 @@ export function Lobby({
 }) {
   const [nameInput, setNameInput] = useState(playerName ?? "");
   const [selectedColor, setSelectedColor] = useState("#ffffff");
-  const players = useStorage((root) => root.players) as Record<string, Player> | null;
+  const player1 = useStorage((root) => root.player1);
+  const player2 = useStorage((root) => root.player2);
+  const player3 = useStorage((root) => root.player3);
+  const player4 = useStorage((root) => root.player4);
   const gamePhase = useStorage((root) => root.gamePhase);
   const updateMyPresence = useUpdateMyPresence();
   const others = useOthers();
 
+  const slotPlayers = useMemo(() => [player1, player2, player3, player4], [player1, player2, player3, player4]);
+  const playerList = useMemo(() => slotPlayers.filter((p): p is Player => p !== null), [slotPlayers]);
+  const playerByName = useMemo(() => {
+    const map: Record<string, Player> = {};
+    for (const p of playerList) map[p.name] = p;
+    return map;
+  }, [playerList]);
+
   const gameInProgress = gamePhase === "playing";
 
   // Broadcast our identity as presence
-  const joined = playerName != null && players != null && playerName in players;
-  const myColor = joined && players ? players[playerName].cubeColor : null;
+  const joined = playerName != null && playerName in playerByName;
+  const myColor = joined ? playerByName[playerName].cubeColor : null;
 
   useEffect(() => {
     updateMyPresence({ name: joined ? playerName : null, color: myColor });
@@ -49,15 +60,29 @@ export function Lobby({
   if (joined && playerName) onlineNames.add(playerName);
 
   const joinGame = useMutation(({ storage }, name: string, color: string) => {
-    const existing = storage.get("players");
-    if (existing[name]) return; // already joined
-    storage.set("players", { ...existing, [name]: createPlayer(name, color) });
+    // Check if already joined in any slot
+    for (const slot of PLAYER_SLOTS) {
+      const p = storage.get(slot);
+      if (p && p.name === name) return;
+    }
+    // Find first empty slot
+    for (const slot of PLAYER_SLOTS) {
+      if (storage.get(slot) === null) {
+        storage.set(slot, createPlayer(name, color));
+        return;
+      }
+    }
+    // All slots full — cannot join
   }, []);
 
   const leaveGame = useMutation(({ storage }, name: string) => {
-    const existing = { ...storage.get("players") };
-    delete existing[name];
-    storage.set("players", existing);
+    for (const slot of PLAYER_SLOTS) {
+      const p = storage.get(slot);
+      if (p && p.name === name) {
+        storage.set(slot, null);
+        return;
+      }
+    }
   }, []);
 
   const startGame = useMutation(({ storage }) => {
@@ -85,8 +110,14 @@ export function Lobby({
     );
     storage.set("feederDice", initialDice);
     storage.set("takenDice", []);
-    const names = Object.keys(storage.get("players"));
-    if (names.length > 0) storage.set("firstPlayer", names[0]);
+    // Find first player name from occupied slots
+    for (const slot of PLAYER_SLOTS) {
+      const p = storage.get(slot);
+      if (p) {
+        storage.set("firstPlayer", p.name);
+        break;
+      }
+    }
     storage.set("gamePhase", "playing");
   }, []);
 
@@ -115,19 +146,23 @@ export function Lobby({
     );
     storage.set("feederDice", initialDice);
     storage.set("takenDice", []);
-    storage.set("players", {});
+    storage.set("player1", null);
+    storage.set("player2", null);
+    storage.set("player3", null);
+    storage.set("player4", null);
   }, []);
 
-  const playerList = players ? Object.values(players) : [];
+  const isFull = playerList.length >= MAX_PLAYERS;
 
   const handleRejoin = () => {
     const name = nameInput.trim();
     if (!name) return;
     // If the player already exists in storage, just reclaim that identity
-    if (players && name in players) {
+    if (name in playerByName) {
       onJoin(name);
       return;
     }
+    if (isFull) return;
     // Otherwise, create a new player entry
     joinGame(name, selectedColor);
     onJoin(name);
@@ -205,7 +240,7 @@ export function Lobby({
                 className="px-4 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/40 outline-none focus:border-white/50"
                 autoFocus
               />
-              {players && nameInput.trim() in players && (
+              {playerByName && nameInput.trim() in playerByName && (
                 <span className="text-yellow-300 text-xs">
                   This name already exists — you'll rejoin as that player.
                 </span>
@@ -213,7 +248,7 @@ export function Lobby({
             </div>
 
             {/* Color picker (only shown when creating a new player) */}
-            {!(players && nameInput.trim() in players) && (
+            {!(nameInput.trim() in playerByName) && (
               <div className="w-full flex flex-col gap-2">
                 <label className="text-white/70 text-sm font-semibold">Cube Color</label>
                 <div className="flex items-start gap-4">
@@ -244,14 +279,14 @@ export function Lobby({
             {/* Join button */}
             <button
               onClick={handleRejoin}
-              disabled={!nameInput.trim()}
+              disabled={!nameInput.trim() || (!(nameInput.trim() in playerByName) && isFull)}
               className="px-6 py-3 rounded-xl text-white font-semibold cursor-pointer transition-all hover:scale-105 hover:ring-2 hover:ring-yellow-400 disabled:opacity-40 disabled:cursor-not-allowed"
               style={{
                 background: "rgba(255,255,255,0.15)",
                 border: "2px solid rgba(255,255,255,0.3)",
               }}
             >
-              {players && nameInput.trim() in players ? "Rejoin" : "Join Game"}
+              {nameInput.trim() in playerByName ? "Rejoin" : isFull ? "Game Full" : "Join Game"}
             </button>
           </>
         ) : (
