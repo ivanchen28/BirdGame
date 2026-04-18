@@ -51,7 +51,7 @@
     "Automa": null,
     "Condition": "Birds worth less than 4 points",
     "Explanatory text": null,
-    "VP": "5 to 6 birds: 3[point]; 6+ birds: 6[point]",
+    "VP": "4 to 5 birds: 4[point]; 6+ birds: 7[point]",
     "%": 42,
     "Note": "Count the birds you played that have a face value of 0, 1, 2, or 3 points.",
     "rulings": []
@@ -75,7 +75,7 @@
     "Automa": "X",
     "Condition": "Birds that can live in multiple habitats",
     "Explanatory text": null,
-    "VP": "4 to 5 birds: 4[point]; 6+ birds: 7[point]",
+    "VP": "5 to 6 birds: 4[point]; 7+ birds: 7[point]",
     "%": 31,
     "Note": null,
     "rulings": []
@@ -116,7 +116,7 @@
     "Automa": null,
     "Condition": "Birds that have at least 4 eggs laid on them",
     "Explanatory text": null,
-    "VP": "1[point] per bird",
+    "VP": "2[point] per bird",
     "%": 28,
     "Note": "Count only bird cards that have 4 egg tokens sitting on them at game end.",
     "rulings": []
@@ -161,7 +161,7 @@
     "Automa": "X",
     "Condition": "Birds with tucked cards",
     "Explanatory text": null,
-    "VP": "4 to 6 birds: 3[point]; 7+ birds: 6[point]",
+    "VP": "4 to 6 birds: 5[point]; 7+ birds: 9[point]",
     "%": 21,
     "Note": null,
     "rulings": [
@@ -238,7 +238,7 @@
     "Automa": null,
     "Condition": "Birds that allow you to score or draw bonus cards",
     "Explanatory text": null,
-    "VP": "3[point] each",
+    "VP": "2[point] each",
     "%": 9,
     "Note": "Count how many birds you have that have the symbol shown\u2013birds whose power allows you to draw a new bonus card. In this deck, these birds are:<br>Indian Vulture<br>Philippine Eagle<br>White-headed Duck<br>Spoon-billed Sandpiper<br>Greater Adjutant<br>Red-crowned Crane<br>Crested Ibis<br><br>In addition, there is one bird\u2013the Great Indian Bustard\u2013that allows you to score a bonus card and keep it. That bird also counts for this bonus card.",
     "rulings": []
@@ -291,7 +291,7 @@
     "Automa": "X",
     "Condition": "Birds that eat only [invertebrate]",
     "Explanatory text": null,
-    "VP": "2[point] per bird",
+    "VP": "3[point] per bird",
     "%": 9,
     "Note": null,
     "rulings": []
@@ -397,7 +397,7 @@
     "Automa": "X",
     "Condition": "Birds named after a person",
     "Explanatory text": "Any bird with an 's in its name.",
-    "VP": "2[point] per bird",
+    "VP": "3[point] per bird",
     "%": 11,
     "Note": null,
     "rulings": []
@@ -457,7 +457,7 @@
     "Automa": "X",
     "Condition": "Sets of the 4 nest types",
     "Explanatory text": "Each star nest can be treated as any 1 nest type. No card can be part of more than one set.",
-    "VP": "1 set = [bowl] [cavity] [ground] [platform]; one set: 3[point]; two sets: 8[point]",
+    "VP": "1 set = [bowl] [cavity] [ground] [platform]; one set: 3[point]; two sets: 7[point]",
     "%": "-",
     "Note": "This card is looking for sets of the four nest types among all of your birds. The order and location of the nests do not matter; it only matters that each set includes all four nest types.<br>Each star nest can be substituted for one nest of any type in one set. For example:<ul><li>a cavity nest, a platform nest, and two stars would be a complete set.<\/li><li>two cavity nests, two platform nests, a bowl nest, a ground nest, and two stars would be two complete sets.<\/li><li>two bowl nests, two cavity nests, two platform nests, and one star nest count as one set, not two, because the star nest can only be a member of one set.<\/li><\/ul>",
     "rulings": []

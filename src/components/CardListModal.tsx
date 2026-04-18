@@ -10,6 +10,7 @@ interface CardListModalProps {
   onAddToHand?: (cardId: number) => void;
   onDiscard?: (cardId: number) => void;
   onShuffle?: () => void;
+  onReturnToDeck?: () => void;
 }
 
 export function CardListModal({
@@ -20,6 +21,7 @@ export function CardListModal({
   onAddToHand,
   onDiscard,
   onShuffle,
+  onReturnToDeck,
 }: CardListModalProps) {
   const [selectedId, setSelectedId] = useState<number | null>(null);
 
@@ -58,6 +60,20 @@ export function CardListModal({
                 }}
               >
                 Shuffle
+              </button>
+            )}
+            {onReturnToDeck && cards.length > 0 && (
+              <button
+                onClick={onReturnToDeck}
+                className="px-2.5 py-1 rounded-lg text-xs font-bold text-white cursor-pointer hover:brightness-125 transition-all"
+                style={{
+                  background: "#1e3a5f",
+                  border: "1px solid #60a5fa",
+                  fontFamily: "CardenioModernBold, sans-serif",
+                  fontSize: 12,
+                }}
+              >
+                Return to Deck
               </button>
             )}
           </div>

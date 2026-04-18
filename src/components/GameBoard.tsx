@@ -51,6 +51,7 @@ const BirdSlot: React.FC<{
   onMigrate?: () => void;
   onReturnToHand?: () => void;
   onDiscardPlayed?: () => void;
+  onUncacheFood?: (food: FoodType) => void;
   actionCube?: { color: string };
   onCubeClick?: (e: React.MouseEvent) => void;
 }> = ({
@@ -64,6 +65,7 @@ const BirdSlot: React.FC<{
   onMigrate,
   onReturnToHand,
   onDiscardPlayed,
+  onUncacheFood,
   actionCube,
   onCubeClick,
 }) => {
@@ -99,6 +101,7 @@ const BirdSlot: React.FC<{
           onMigrate={onMigrate}
           onReturnToHand={onReturnToHand}
           onDiscardPlayed={onDiscardPlayed}
+          onUncacheFood={onUncacheFood}
         />
         {cubeOverlay}
       </div>
@@ -249,6 +252,7 @@ interface GameBoardProps {
   onRemoveEgg?: (habitat: HabitatType, birdIndex: number) => void;
   cachingFood?: FoodType | null;
   onCacheFood?: (habitat: HabitatType, birdIndex: number) => void;
+  onUncacheFood?: (habitat: HabitatType, birdIndex: number, food: FoodType) => void;
   onViewTucked?: (habitat: HabitatType, birdIndex: number) => void;
   onMigrate?: (habitat: HabitatType, birdIndex: number) => void;
   onReturnToHand?: (habitat: HabitatType, birdIndex: number) => void;
@@ -278,6 +282,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   onRemoveEgg,
   cachingFood,
   onCacheFood,
+  onUncacheFood,
   onViewTucked,
   onMigrate,
   onReturnToHand,
@@ -616,6 +621,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                   onMigrate={bird ? () => onMigrate?.(h, col) : undefined}
                   onReturnToHand={bird ? () => onReturnToHand?.(h, col) : undefined}
                   onDiscardPlayed={bird ? () => onDiscardPlayed?.(h, col) : undefined}
+                  onUncacheFood={bird ? (food: FoodType) => onUncacheFood?.(h, col, food) : undefined}
                   onSlotClick={
                     highlightForPlace
                       ? () => {

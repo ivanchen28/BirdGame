@@ -21,6 +21,7 @@ interface PlayedBirdCardDisplayProps {
   onMigrate?: () => void;
   onReturnToHand?: () => void;
   onDiscardPlayed?: () => void;
+  onUncacheFood?: (food: FoodType) => void;
 }
 
 export function PlayedBirdCardDisplay({
@@ -33,6 +34,7 @@ export function PlayedBirdCardDisplay({
   onMigrate,
   onReturnToHand,
   onDiscardPlayed,
+  onUncacheFood,
 }: PlayedBirdCardDisplayProps) {
   const cardWidth = cardHeight * CARD_RATIO;
   const tuckedCount = bird.tuckedCards.length;
@@ -248,6 +250,7 @@ export function PlayedBirdCardDisplay({
           cachedFood={bird.cachedFood}
           cardHeight={cardHeight}
           hasTucked={bird.tuckedCards.length > 0}
+          onUncacheFood={onUncacheFood}
         />
       )}
     </div>
@@ -258,10 +261,12 @@ function CachedFoodIndicator({
   cachedFood,
   cardHeight,
   hasTucked,
+  onUncacheFood,
 }: {
   cachedFood: FoodSupply;
   cardHeight: number;
   hasTucked: boolean;
+  onUncacheFood?: (food: FoodType) => void;
 }) {
   const [showTooltip, setShowTooltip] = useState(false);
   const entries = (Object.entries(cachedFood) as [FoodType, number][]).filter(([, n]) => n > 0);
@@ -288,31 +293,54 @@ function CachedFoodIndicator({
       </span>
 
       {showTooltip && (
-        <div
-          className="absolute z-50 rounded-lg px-2.5 py-1.5 shadow-lg flex items-center gap-2 w-max"
-          style={{
-            bottom: "110%",
-            right: "50%",
-            transform: "translateX(50%)",
-            background: "rgba(0,0,0,0.85)",
-            border: "1px solid rgba(255,255,255,0.3)",
-          }}
-        >
-          {entries.map(([food, count]) => (
-            <div key={food} className="flex items-center gap-1 py-0.5">
-              <img src={foodUrl(food)} alt={food} className="h-4 drop-shadow" />
-              <span
-                className="text-white font-bold"
-                style={{
-                  fontFamily: "CardenioModernBold, SiliciStrong, sans-serif",
-                  fontSize: "0.7rem",
-                }}
+        <>
+          {/* Invisible bridge so the cursor can travel from icon to tooltip */}
+          <div
+            className="absolute"
+            style={{
+              bottom: "100%",
+              left: "-50%",
+              right: "-50%",
+              height: "10%",
+            }}
+          />
+          <div
+            className="absolute z-50 rounded-lg px-2.5 py-1.5 shadow-lg flex items-center gap-2 w-max"
+            style={{
+              bottom: "110%",
+              right: "50%",
+              transform: "translateX(50%)",
+              background: "rgba(0,0,0,0.85)",
+              border: "1px solid rgba(255,255,255,0.3)",
+            }}
+          >
+            {entries.map(([food, count]) => (
+              <div
+                key={food}
+                className={`flex items-center gap-1 py-0.5${onUncacheFood ? " cursor-pointer hover:bg-white/10 rounded px-1 -mx-1" : ""}`}
+                onClick={
+                  onUncacheFood
+                    ? (e) => {
+                        e.stopPropagation();
+                        if (e.shiftKey) onUncacheFood(food);
+                      }
+                    : undefined
+                }
               >
-                ×{count}
-              </span>
-            </div>
-          ))}
-        </div>
+                <img src={foodUrl(food)} alt={food} className="h-4 drop-shadow" />
+                <span
+                  className="text-white font-bold"
+                  style={{
+                    fontFamily: "CardenioModernBold, SiliciStrong, sans-serif",
+                    fontSize: "0.7rem",
+                  }}
+                >
+                  ×{count}
+                </span>
+              </div>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );

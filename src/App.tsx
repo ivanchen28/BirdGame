@@ -341,6 +341,28 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
     [cachingFood, pid],
   );
 
+  const uncacheFoodFromBird = useMutation(
+    ({ storage }, habitat: HabitatType, birdIndex: number, foodType: FoodType) => {
+      const p = storage.get("players")[pid];
+      const birds = [...p.habitats[habitat].birds];
+      const target = birds[birdIndex];
+      if (target.cachedFood[foodType] <= 0) return;
+      birds[birdIndex] = {
+        ...target,
+        cachedFood: { ...target.cachedFood, [foodType]: target.cachedFood[foodType] - 1 },
+      };
+      storage.set("players", {
+        ...storage.get("players"),
+        [pid]: {
+          ...p,
+          food: { ...p.food, [foodType]: p.food[foodType] + 1 },
+          habitats: { ...p.habitats, [habitat]: { ...p.habitats[habitat], birds } },
+        },
+      });
+    },
+    [pid],
+  );
+
   const unTuck = useMutation(
     ({ storage }, cardId: number) => {
       if (!viewingTucked) return;
@@ -895,8 +917,12 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
     storage.set("bonusDiscard", shuffle([...storage.get("bonusDiscard")]));
   }, []);
 
-  const shuffleHummingbirdDiscard = useMutation(({ storage }) => {
-    storage.set("hummingbirdDiscard", shuffle([...storage.get("hummingbirdDiscard")]));
+  const returnHummingbirdDiscardToDeck = useMutation(({ storage }) => {
+    const discard = [...storage.get("hummingbirdDiscard")];
+    if (discard.length === 0) return;
+    const deck = [...storage.get("hummingbirdDeck"), ...discard];
+    storage.set("hummingbirdDeck", shuffle(deck));
+    storage.set("hummingbirdDiscard", []);
   }, []);
 
   // Build dock items: bonus cards first, then bird cards
@@ -941,11 +967,11 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
 
   return (
     <div
-      className="fixed inset-0 bg-gradient-to-br from-emerald-800 to-emerald-950 flex overflow-hidden"
+      className="fixed inset-0 bg-gradient-to-br from-emerald-800 to-emerald-950 flex overflow-auto"
       onClick={dismissAll}
     >
       {/* ── Left side: game board row + card hand ── */}
-      <div className="flex-1 flex flex-col py-2 px-5 overflow-hidden min-w-0">
+      <div className="flex-1 flex flex-col py-2 px-5 min-w-0">
         {/* Game board + side column row */}
         <div className="flex items-start gap-4">
           <div className="flex flex-col gap-1">
@@ -1018,6 +1044,7 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
               onRemoveEgg={isViewingOther ? undefined : removeEggFromBird}
               cachingFood={isViewingOther ? null : cachingFood}
               onCacheFood={isViewingOther ? undefined : cacheFoodOnBird}
+              onUncacheFood={isViewingOther ? undefined : uncacheFoodFromBird}
               onViewTucked={
                 isViewingOther ? undefined : (habitat, birdIndex) => setViewingTucked({ habitat, birdIndex })
               }
@@ -1265,7 +1292,10 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
           cards={hummingbirdDiscard.map(getHummingbird)}
           renderCard={(card, h) => <HummingbirdCardDisplay card={card as HummingbirdCard} cardHeight={h} />}
           onClose={() => setDiscardModal(null)}
-          onShuffle={shuffleHummingbirdDiscard}
+          onReturnToDeck={() => {
+            returnHummingbirdDiscardToDeck();
+            setDiscardModal(null);
+          }}
         />
       )}
       {/* Tucked cards modal */}
