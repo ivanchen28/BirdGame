@@ -923,20 +923,15 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
 
   const onRoundEndRemoveCube = useMutation(
     ({ storage }, round: number, placement: number, cubeColor: string) => {
-      for (const slotKey of PLAYER_SLOTS) {
-        const p = storage.get(slotKey);
-        if (!p || p.cubeColor !== cubeColor) continue;
-        const idx = p.roundEndTokens.findIndex((t: RoundEndToken) => t.round === round && t.placement === placement);
-        if (idx < 0) continue;
-        const newTokens = [...p.roundEndTokens];
-        newTokens.splice(idx, 1);
-        const update: any = { ...p, roundEndTokens: newTokens };
-        if (p.name === pid) {
-          update.actionCubes = p.actionCubes + 1;
-        }
-        storage.set(slotKey, update);
-        return;
-      }
+      const slot = findSlot(storage, pid);
+      if (!slot) return;
+      const p = storage.get(slot)!;
+      if (p.cubeColor !== cubeColor) return;
+      const idx = p.roundEndTokens.findIndex((t: RoundEndToken) => t.round === round && t.placement === placement);
+      if (idx < 0) return;
+      const newTokens = [...p.roundEndTokens];
+      newTokens.splice(idx, 1);
+      storage.set(slot, { ...p, roundEndTokens: newTokens, actionCubes: p.actionCubes + 1 });
     },
     [pid],
   );

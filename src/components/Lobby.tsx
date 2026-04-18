@@ -146,14 +146,11 @@ export function Lobby({
     storage.set("roundEndGoalIds", shuffledGoals.slice(0, 4));
     storage.set("feederDice", initialDice);
     storage.set("takenDice", []);
-    // Find first player name from occupied slots
-    for (const slot of PLAYER_SLOTS) {
-      const p = storage.get(slot);
-      if (p) {
-        storage.set("firstPlayer", p.name);
-        break;
-      }
-    }
+    // Pick a random player to go first
+    const occupiedNames = PLAYER_SLOTS.map((s) => storage.get(s))
+      .filter((p): p is Player => p !== null)
+      .map((p) => p.name);
+    storage.set("firstPlayer", occupiedNames[Math.floor(Math.random() * occupiedNames.length)]);
     storage.set("gamePhase", "playing");
   }, []);
 
