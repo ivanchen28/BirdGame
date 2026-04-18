@@ -92,16 +92,56 @@ export function Lobby({
     const shuffledHummingbirds = shuffle(allHummingbirdIds);
     const shuffledGoals = shuffle(allGoalIds);
     const initialDice = createFeederDice();
-    storage.set("birdDeck", shuffledBirds.slice(3));
-    storage.set("birdTray", shuffledBirds.slice(0, 3));
-    storage.set("bonusDeck", shuffledBonus);
+
+    // Reserve bird tray (3 cards)
+    const birdTray = shuffledBirds.slice(0, 3);
+    let birdOffset = 3;
+
+    // Reserve hummingbird tray (5 groups of 1)
+    const hummingbirdTray = shuffledHummingbirds.slice(0, 5).map((id) => [id]);
+    let hummingbirdOffset = 5;
+
+    let bonusOffset = 0;
+
+    // Deal starting resources to each player
+    for (const slot of PLAYER_SLOTS) {
+      const p = storage.get(slot);
+      if (!p) continue;
+
+      // 5 bird cards
+      const birdCards = shuffledBirds.slice(birdOffset, birdOffset + 5);
+      birdOffset += 5;
+
+      // 2 bonus cards
+      const bonusCards = shuffledBonus.slice(bonusOffset, bonusOffset + 2);
+      bonusOffset += 2;
+
+      // 1 hummingbird for grassland
+      const hummingbirdId = shuffledHummingbirds[hummingbirdOffset];
+      hummingbirdOffset += 1;
+
+      storage.set(slot, {
+        ...p,
+        birdHand: birdCards,
+        bonusHand: bonusCards,
+        food: { invertebrate: 1, seed: 1, fish: 1, fruit: 1, rodent: 1, nectar: 1 },
+        habitats: {
+          ...p.habitats,
+          grassland: {
+            ...p.habitats.grassland,
+            hummingbird: hummingbirdId,
+          },
+        },
+      });
+    }
+
+    storage.set("birdDeck", shuffledBirds.slice(birdOffset));
+    storage.set("birdTray", birdTray);
+    storage.set("bonusDeck", shuffledBonus.slice(bonusOffset));
     storage.set("birdDiscard", []);
     storage.set("bonusDiscard", []);
-    storage.set("hummingbirdDeck", shuffledHummingbirds.slice(5));
-    storage.set(
-      "hummingbirdTray",
-      shuffledHummingbirds.slice(0, 5).map((id) => [id]),
-    );
+    storage.set("hummingbirdDeck", shuffledHummingbirds.slice(hummingbirdOffset));
+    storage.set("hummingbirdTray", hummingbirdTray);
     storage.set("hummingbirdDiscard", []);
     storage.set("roundEndGoalIds", shuffledGoals.slice(0, 4));
     storage.set(
