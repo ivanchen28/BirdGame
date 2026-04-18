@@ -234,6 +234,11 @@ export type Habitat = {
 
 // ── Player ──
 
+export type RoundEndToken = {
+  round: number;
+  placement: number;
+};
+
 export type Player = {
   name: string;
   cubeColor: string;
@@ -245,6 +250,7 @@ export type Player = {
   habitats: Record<HabitatType, Habitat>;
   hummingbirdTrack: Record<HummingbirdGroup, number>;
   hummingbirdTrackPattern: number[];
+  roundEndTokens: RoundEndToken[];
 };
 
 export function createPlayer(name: string, cubeColor: string): Player {
@@ -258,6 +264,7 @@ export function createPlayer(name: string, cubeColor: string): Player {
     food: { invertebrate: 0, seed: 0, fish: 0, fruit: 0, rodent: 0, nectar: 0 },
     hummingbirdTrack: { bee: 0, brilliant: 0, emerald: 0, mango: 0, topaz: 0 },
     hummingbirdTrackPattern: generateTrackPattern(),
+    roundEndTokens: [],
     habitats: {
       forest: {
         type: "forest",

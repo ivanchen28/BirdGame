@@ -144,10 +144,6 @@ export function Lobby({
     storage.set("hummingbirdTray", hummingbirdTray);
     storage.set("hummingbirdDiscard", []);
     storage.set("roundEndGoalIds", shuffledGoals.slice(0, 4));
-    storage.set(
-      "roundEndSpots",
-      Array.from({ length: 4 }, () => Array.from({ length: 4 }, () => ({ cubeColors: [] as string[] }))),
-    );
     storage.set("feederDice", initialDice);
     storage.set("takenDice", []);
     // Find first player name from occupied slots
@@ -180,10 +176,6 @@ export function Lobby({
     );
     storage.set("hummingbirdDiscard", []);
     storage.set("roundEndGoalIds", shuffledGoals.slice(0, 4));
-    storage.set(
-      "roundEndSpots",
-      Array.from({ length: 4 }, () => Array.from({ length: 4 }, () => ({ cubeColors: [] as string[] }))),
-    );
     storage.set("feederDice", initialDice);
     storage.set("takenDice", []);
     storage.set("player1", null);

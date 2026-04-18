@@ -47,6 +47,7 @@ import {
   type Player,
   type PlayerSlot,
   type RoundEndSpot,
+  type RoundEndToken,
 } from "./types";
 
 const FOOD_DISPLAY_NAMES: Record<FoodType, string> = {
@@ -107,7 +108,6 @@ function createInitialStorage() {
     hummingbirdTray: shuffledHummingbirds.slice(0, 5).map((id) => [id]),
     hummingbirdDiscard: [] as number[],
     roundEndGoalIds: shuffledGoals.slice(0, 4),
-    roundEndSpots: Array.from({ length: 4 }, () => Array.from({ length: 4 }, () => ({ cubeColors: [] as string[] }))),
     feederDice: initialDice,
     takenDice: [] as typeof initialDice,
     player1: null as Player | null,
@@ -174,7 +174,6 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
   const hummingbirdTray = useStorage((root) => root.hummingbirdTray)!;
   const hummingbirdDiscard = useStorage((root) => root.hummingbirdDiscard)!;
   const roundEndGoalIds = useStorage((root) => root.roundEndGoalIds)!;
-  const roundEndSpots = useStorage((root) => root.roundEndSpots)!;
   const firstPlayer = useStorage((root) => root.firstPlayer)!;
 
   // ── Derive player lookup from individual slots ──
@@ -187,6 +186,20 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
     return map;
   }, [allSlots]);
   const player = allPlayers[currentPlayerId]!;
+
+  // ── Derive round-end spots from per-player tokens ──
+  const roundEndSpots = useMemo(() => {
+    const spots: RoundEndSpot[][] = Array.from({ length: 4 }, () =>
+      Array.from({ length: 4 }, () => ({ cubeColors: [] as string[] })),
+    );
+    for (const p of allSlots) {
+      if (!p) continue;
+      for (const token of p.roundEndTokens) {
+        spots[token.round]?.[token.placement]?.cubeColors.push(p.cubeColor);
+      }
+    }
+    return spots;
+  }, [allSlots]);
 
   // Helper: find which storage slot key holds a player by name (used inside mutations)
   function findSlot(storage: any, name: string): PlayerSlot | null {
@@ -226,13 +239,13 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
 
   // ── Synced mutations ──
 
-  const passFirstPlayer = useMutation(({ storage }) => {
+  const passFirstPlayer = useMutation(({ storage }, backward: boolean) => {
     const names = PLAYER_SLOTS.map((s) => storage.get(s))
       .filter((p): p is Player => p !== null)
       .map((p) => p.name);
     const current = storage.get("firstPlayer");
     const idx = names.indexOf(current);
-    const next = names[(idx + 1) % names.length];
+    const next = backward ? names[(idx - 1 + names.length) % names.length] : names[(idx + 1) % names.length];
     storage.set("firstPlayer", next);
   }, []);
 
@@ -884,10 +897,12 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
 
   const onRoundEndReroll = useMutation(({ storage }) => {
     storage.set("roundEndGoalIds", shuffle(allGoalIds).slice(0, 4));
-    storage.set(
-      "roundEndSpots",
-      Array.from({ length: 4 }, () => Array.from({ length: 4 }, () => ({ cubeColors: [] as string[] }))),
-    );
+    for (const slotKey of PLAYER_SLOTS) {
+      const p = storage.get(slotKey);
+      if (p && p.roundEndTokens.length > 0) {
+        storage.set(slotKey, { ...p, roundEndTokens: [] });
+      }
+    }
   }, []);
 
   const onRoundEndPlaceCube = useMutation(
@@ -896,34 +911,32 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
       if (!slot) return;
       const p = storage.get(slot)!;
       if (p.actionCubes <= 0) return;
-      storage.set(slot, { ...p, actionCubes: p.actionCubes - 1 });
-      const spots = storage.get("roundEndSpots");
-      const newSpots = spots.map((r: RoundEndSpot[]) =>
-        r.map((s: RoundEndSpot) => ({ ...s, cubeColors: [...s.cubeColors] })),
-      );
-      newSpots[round][placement].cubeColors.push(p.cubeColor);
-      storage.set("roundEndSpots", newSpots);
+      storage.set(slot, {
+        ...p,
+        actionCubes: p.actionCubes - 1,
+        roundEndTokens: [...p.roundEndTokens, { round, placement }],
+      });
       setPlacingCube(false);
     },
     [pid],
   );
 
   const onRoundEndRemoveCube = useMutation(
-    ({ storage }, round: number, placement: number, cubeIndex: number) => {
-      const spots = storage.get("roundEndSpots");
-      const color = spots[round]?.[placement]?.cubeColors[cubeIndex];
-      if (!color) return;
-      const slot = findSlot(storage, pid);
-      if (!slot) return;
-      const p = storage.get(slot)!;
-      if (color === p.cubeColor) {
-        storage.set(slot, { ...p, actionCubes: p.actionCubes + 1 });
+    ({ storage }, round: number, placement: number, cubeColor: string) => {
+      for (const slotKey of PLAYER_SLOTS) {
+        const p = storage.get(slotKey);
+        if (!p || p.cubeColor !== cubeColor) continue;
+        const idx = p.roundEndTokens.findIndex((t: RoundEndToken) => t.round === round && t.placement === placement);
+        if (idx < 0) continue;
+        const newTokens = [...p.roundEndTokens];
+        newTokens.splice(idx, 1);
+        const update: any = { ...p, roundEndTokens: newTokens };
+        if (p.name === pid) {
+          update.actionCubes = p.actionCubes + 1;
+        }
+        storage.set(slotKey, update);
+        return;
       }
-      const newSpots = spots.map((r: RoundEndSpot[]) =>
-        r.map((s: RoundEndSpot) => ({ ...s, cubeColors: [...s.cubeColors] })),
-      );
-      newSpots[round][placement].cubeColors.splice(cubeIndex, 1);
-      storage.set("roundEndSpots", newSpots);
     },
     [pid],
   );
@@ -1035,7 +1048,7 @@ function Game({ currentPlayerId }: { currentPlayerId: string }) {
                           isOwner
                             ? (e) => {
                                 e.stopPropagation();
-                                passFirstPlayer();
+                                passFirstPlayer(e.shiftKey);
                               }
                             : undefined
                         }

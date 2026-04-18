@@ -19,7 +19,7 @@ interface RoundEndGoalBoardProps {
   onReroll?: () => void;
   placingCube?: boolean;
   onPlaceCube?: (round: number, placement: number) => void;
-  onRemoveCube?: (round: number, placement: number, cubeIndex: number) => void;
+  onRemoveCube?: (round: number, placement: number, cubeColor: string) => void;
 }
 
 export const RoundEndGoalBoard: React.FC<RoundEndGoalBoardProps> = ({
@@ -132,7 +132,7 @@ export const RoundEndGoalBoard: React.FC<RoundEndGoalBoardProps> = ({
                             className="cursor-pointer hover:brightness-125 transition-all"
                             onClick={(e) => {
                               e.stopPropagation();
-                              onRemoveCube?.(colIdx, rowIdx, ci);
+                              onRemoveCube?.(colIdx, rowIdx, color);
                             }}
                           >
                             <ActionCube color={color} size={18} />

@@ -1,6 +1,6 @@
 import { createClient } from "@liveblocks/client";
 import { createRoomContext } from "@liveblocks/react";
-import type { Die, Player, RoundEndSpot } from "./types";
+import type { Die, Player } from "./types";
 
 const client = createClient({
   publicApiKey: "pk_prod_YrPRZ9Jq9G6RnsNXsozxohxv-knwkFi02iqrbxoNUCZkXZifXE0ER9RKNqBUhfEw",
@@ -24,7 +24,6 @@ type Storage = {
   hummingbirdTray: number[][];
   hummingbirdDiscard: number[];
   roundEndGoalIds: number[];
-  roundEndSpots: RoundEndSpot[][];
   feederDice: Die[];
   takenDice: Die[];
   firstPlayer: string;
